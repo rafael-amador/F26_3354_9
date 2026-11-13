@@ -1,0 +1,12 @@
+# scratch renders of spec diagrams (derived from spec/, not product code)
+.spec-render/
+# local H2 database files
+server/data/
+*.mv.db
+*.trace.db
+node_modules/
+target/
+.expo/
+dist/
+web-build/
+.env
