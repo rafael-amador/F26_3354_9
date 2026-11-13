@@ -36,10 +36,12 @@ export function seeded(seed: number) {
 /** *** STUB *** simulated wearable. Produces plausible step and heart-rate readings. */
 export class FakeSmartDevice implements SmartDeviceAdapter {
   readonly deviceType = 'watch';
+  readonly deviceId: string;
   readonly platform: string;
   private rand: () => number;
 
-  constructor(readonly deviceId: string, platform = 'simulated', seed = 42) {
+  constructor(deviceId: string, platform = 'simulated', seed = 42) {
+    this.deviceId = deviceId;
     this.platform = platform;
     this.rand = seeded(seed);
   }
