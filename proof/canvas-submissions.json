@@ -1,0 +1,8 @@
+{
+  "source": "UTD eLearning (Canvas) REST API, course 19737 (CS/CE/SE 3354.006, F26, instructor Barbara Maweu), queried 2026-11-13 from the submitting student's own session",
+  "verification": "Each file was re-downloaded live from Canvas on 2026-11-13 and its SHA-256 computed in the browser; it matches the copy in spec/01-canvas-submitted byte for byte.",
+  "submissions": [
+    {"assignment": "Part 1: Project Charter", "assignment_id": 351378, "submitted_at": "2026-09-13T20:58:34Z", "attempt": 1, "file_id": 4183971, "file": "Team_9_SE3354_F26_ProjectProposal.pdf", "size": 188884, "file_created_at": "2026-09-13T20:58:28Z", "sha256": "d34264d48e8d6007e5861356904404b743f61c86bb812bdda62c9f6214421a0a"},
+    {"assignment": "Part 2: Project Deliverable #1", "assignment_id": 361126, "submitted_at": "2026-10-25T15:53:24Z", "attempt": 1, "file_id": 5145513, "file": "Team_09_SE3354_F26_Deliverable_1.pdf", "size": 1881838, "file_created_at": "2026-10-25T15:53:14Z", "sha256": "6d1f208291269dd25a1bf7099139b398319e148529a5f5ae8a015adfaa30c248"}
+  ]
+}

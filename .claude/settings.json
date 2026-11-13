@@ -1,0 +1,19 @@
+{
+  "autoMemoryEnabled": false,
+  "enableAllProjectMcpServers": false,
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)", "Edit(./app/**)", "Write(./app/**)", "Edit(./ASSUMPTIONS.md)", "Edit(./TRACEABILITY.md)", "Edit(./BUILD_LOG.md)",
+      "Bash(mvn:*)", "Bash(./mvnw:*)", "Bash(java:*)", "Bash(javac:*)", "Bash(npm:*)", "Bash(npx:*)", "Bash(node:*)",
+      "Bash(docker:*)", "Bash(docker compose:*)", "Bash(git add:*)", "Bash(git commit:*)", "Bash(git status:*)", "Bash(git log:*)", "Bash(git diff:*)",
+      "Bash(ls:*)", "Bash(mkdir:*)", "Bash(cat:*)", "Bash(cd:*)", "Bash(pdftotext:*)", "Bash(curl http://localhost:*)", "Bash(sleep:*)"
+    ],
+    "deny": [
+      "WebFetch", "WebSearch",
+      "Edit(./spec/**)", "Write(./spec/**)", "Edit(./proof/**)", "Write(./proof/**)", "Edit(./PROMPT.md)", "Edit(./CLAUDE.md)",
+      "Read(//c/Users/**)", "Read(//c/CometFit-cleanroom/repo/**)",
+      "Bash(git push:*)", "Bash(git remote:*)", "Bash(rm -rf:*)"
+    ]
+  }
+}
