@@ -20,6 +20,18 @@ The AI received exactly one build instruction, committed before any code existed
 Full text: [`PROMPT.md`](PROMPT.md). Rules: [`CLAUDE.md`](CLAUDE.md). Any later update prompt is added
 under `proof/prompts/` and cited here.
 
+Stage 2 update prompt (after Deliverable #2 material and team decisions were added to `spec/`):
+
+> Team 9. "Stage 2 build instruction (update)." `proof/prompts/stage-2.md`, CometFit clean-room build,
+> commit `96ddc59`, 14 Nov 2026. Same rules file and run script; transcript `proof/transcripts/build-2-stage2.jsonl`.
+
+## Who made which commit
+
+Commits whose message ends with `Co-Authored-By: Claude` were made by the build AI inside the isolated
+session (all code under `app/`, `TRACEABILITY.md`, `ASSUMPTIONS.md`, `BUILD_LOG.md`). Commits without it are
+the team's setup and proof work (inputs in `spec/`, `proof/`, this README), made by Rafael with help from an AI
+assistant working outside the build session; that help is disclosed in `proof/HUMAN_INTERVENTIONS.md`.
+
 ## Conditions (confirmed by the instructor)
 
 On 13 Nov 2026 Dr. Barbara Maweu confirmed by email that the bonus conditions are: (1) the app may be
