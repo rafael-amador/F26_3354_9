@@ -1,12 +1,13 @@
 # Assumptions
 
-Every gap that had to be filled because `spec/` (Project Proposal = "Prop", Deliverable 1 = "D1") is silent or
-ambiguous. Code comments reference these IDs.
+Every gap that had to be filled because `spec/` (Project Proposal = "Prop", Deliverable 1 = "D1", Deliverable 2 draft = "D2",
+team repo code = "TRC", team decisions = "TD-n") is silent or ambiguous. Code comments reference these IDs.
+Rows answered by a later input are kept and marked **SUPERSEDED by ...** (stage 2).
 
 A-n | what was missing | choice made | related spec section
 ---|---|---|---
 A-1 | How the "Server" box (API gateway, auth gateway, 4 services, encrypted DB) is deployed; load balancing / telemetry details | One Spring Boot process with one package per box: `gateway` (API gateway + module routing), `security` (auth gateway), `controllers`+`services` (Social / Activity / Nutrition / Admin), PostgreSQL. Load balancing is not built for a laptop demo; telemetry = health checks + uptime records (FR-1). | D1 §5.3.1, §5.3.2, §5.3.3
-A-2 | Which database product; Docker Engine not running on the build machine | PostgreSQL 16 (docker-compose) is the default. An `h2` Spring profile (embedded file DB, PostgreSQL mode) lets the app run and be tested without Docker. The same Flyway schema is used for both. | D1 §5.3.2 "Encrypted Database"; Prop §9 "Database for the app"
+A-2 | Which database product; Docker Engine not running on the build machine | PostgreSQL 16 (docker-compose) is the default. An `h2` Spring profile (embedded file DB, PostgreSQL mode) lets the app run and be tested without Docker. The same Flyway schema is used for both. | D1 §5.3.2 "Encrypted Database"; Prop §9 "Database for the app" **SUPERSEDED by `spec/04-team-repo-code/README.md` ("MySQL for database operations") and `db/docker-compose.yml` (`mysql:8.4`): database is now MySQL 8.4; see A-33.**
 A-3 | How accounts are created (every use case includes "Log In" but there is no sign-up use case) | Students self-register (username, password, email, display name) and get a TOTP secret to add to an authenticator app. Developer accounts are created by seed/config only. | D1 Fig 4.3 "Log In (Password + TOTP)"; NFR Security
 A-4 | Credential rules | Username 3–30 chars `[A-Za-z0-9_.]`, unique (case-insensitive); password ≥ 8 chars; email must look like an address. | NFR Security
 A-5 | What "all user data will be encrypted" means concretely | Passwords: BCrypt hash. Email and TOTP secret: AES-256-GCM field encryption (key from `COMETFIT_DATA_KEY`). Other tables (meals, steps, …) rely on database/disk-level encryption in a real deployment, because the app must sum and query them. TLS is expected from the deployment's reverse proxy; the local demo uses plain HTTP. | NFR Security, NFR Legislative-Security; D1 §5.3.2 "Encrypted Database"
@@ -37,3 +38,4 @@ A-29 | Editing or deleting logged meals, water or visits | Not provided; the spe
 A-30 | Range of friend statistics | A friend's stats show today's calories, water and steps (with goals), UREC visits in the last 7 days, point balance, and leaderboard rank, each only if consented. | D1 UC-3 "View Friend's Statistics"; SD-3
 A-31 | Brute-force protection and rate limiting | Not implemented (out of scope for the course prototype). The login error message is the same for every failure, so usernames can't be probed. | D1 NFR Security
 A-32 | Visual design (Figma designs are not in `spec/`) | Simple neutral card-based layout with a bottom tab bar (Today, Log, Activity, Friends, Profile) and a separate admin dashboard for developers. | D1 NFR Development ("Figma for design"); NFR Usability
+A-33 | (stage 2) How to keep a no-Docker option and fast tests after the switch to MySQL; what happens to stage-1 PostgreSQL data | The `h2` profile and the test profile use H2 in MySQL mode with the same Flyway SQL. The V1 migration was rewritten in MySQL syntax (foreign keys as table constraints, `DATETIME(6)` timestamps) because a new database product starts empty; stage-1 PostgreSQL/H2 data is not migrated (it was test data only). | TRC README; D1 §5.3.2 "Encrypted Database"

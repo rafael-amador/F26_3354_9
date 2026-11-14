@@ -1,6 +1,7 @@
 # CometFit server configuration.
-# Default profile = PostgreSQL (the "Encrypted Database" of Deliverable 1 §5.3.2), run via docker-compose.
-# Profile "h2" = embedded file database for laptops without Docker (ASSUMPTIONS A-2).
+# Default profile = MySQL 8.4 (the "Encrypted Database" of D1 §5.3.2; product named by the team repo code README
+# "MySQL for database operations"), run via docker-compose.
+# Profile "h2" = embedded file database in MySQL mode for laptops without Docker (ASSUMPTIONS A-33).
 server:
   port: ${PORT:8080}
 
@@ -8,7 +9,7 @@ spring:
   application:
     name: cometfit-server
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/cometfit}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/cometfit}
     username: ${DB_USER:cometfit}
     password: ${DB_PASSWORD:cometfit}
   jpa:
@@ -55,6 +56,6 @@ spring:
     activate:
       on-profile: h2
   datasource:
-    url: ${DB_URL:jdbc:h2:file:./data/cometfit;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
+    url: ${DB_URL:jdbc:h2:file:./data/cometfit-mysql;MODE=MySQL;DATABASE_TO_LOWER=TRUE}
     username: ${DB_USER:sa}
     password: ${DB_PASSWORD:}

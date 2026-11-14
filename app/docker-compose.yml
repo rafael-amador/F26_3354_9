@@ -1,37 +1,40 @@
-# CometFit local stack: PostgreSQL = the "Encrypted Database" of Deliverable 1 §5.3.2 (A-2).
-# Start:  docker compose up -d db        (from the app/ folder)
-# The server can also run in the container: docker compose up -d --build
+# CometFit local stack. Start everything from the app/ folder with:   docker compose up --build
+#   db     = MySQL 8.4, the "Encrypted Database" of D1 §5.3.2. Product and image from the team repo code
+#            (spec/04-team-repo-code/README.md "MySQL for database operations", db/docker-compose.yml `mysql:8.4`).
+#   server = CometFit REST server (API gateway, auth gateway, services; D1 §5.3.2).
+# Fresh demo data: docker compose down -v   (deletes the database volume), then up again.
 services:
   db:
-    image: postgres:16-alpine
+    image: mysql:8.4
     environment:
-      POSTGRES_DB: cometfit
-      POSTGRES_USER: cometfit
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-cometfit}
+      MYSQL_DATABASE: cometfit
+      MYSQL_USER: cometfit
+      MYSQL_PASSWORD: ${DB_PASSWORD:-cometfit}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - cometfit-db:/var/lib/postgresql/data
+      - cometfit-mysql:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cometfit -d cometfit"]
-      interval: 5s
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "cometfit", "-p${DB_PASSWORD:-cometfit}"]
+      interval: 3s
       timeout: 3s
-      retries: 10
+      retries: 30
 
   server:
     build: ./server
-    profiles: ["full"]
     depends_on:
       db:
         condition: service_healthy
     environment:
-      DB_URL: jdbc:postgresql://db:5432/cometfit
+      DB_URL: jdbc:mysql://db:3306/cometfit
       DB_USER: cometfit
       DB_PASSWORD: ${DB_PASSWORD:-cometfit}
       COMETFIT_DATA_KEY: ${COMETFIT_DATA_KEY:-Q29tZXRGaXQtZGV2LW9ubHkta2V5LWNoYW5nZS1tZSE=}
       COMETFIT_INTEGRATION_KEY: ${COMETFIT_INTEGRATION_KEY:-dev-integration-key}
+      COMETFIT_SEED_DEMO: ${COMETFIT_SEED_DEMO:-true}
     ports:
       - "8080:8080"
 
 volumes:
-  cometfit-db:
+  cometfit-mysql:
