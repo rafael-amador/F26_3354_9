@@ -1,7 +1,30 @@
 // Client unit tests (run with `npm test`, Node's built-in runner with TypeScript type stripping).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { formatDuration, goalWarnings, isEnabled, parseMacro, parsePositiveInt, progress, refillVolume } from '../src/logic.ts';
+import {
+  formatDuration, goalWarnings, isEnabled, parseMacro, parsePositiveAmount, parsePositiveInt, progress, refillVolume, toLiters,
+} from '../src/logic.ts';
+
+// Team repo code LogWater.java / D2 §4.3 TC-1: 0.3 gal -> 1.13 L (truncated, not rounded)
+test('water preview converts gallons to liters and truncates to two decimals like LogWater', () => {
+  assert.equal(toLiters(0.3, false), 1.13);
+  assert.equal(toLiters(0.5, true), 0.5);
+  assert.equal(toLiters(0.759, true), 0.75);
+  assert.equal(toLiters(0.29, true), 0.29);
+  assert.equal(toLiters(1, false), 3.78);
+});
+
+// D2 §4.1: negative or missing values are rejected
+test('water amount parsing accepts positive decimals only', () => {
+  assert.equal(parsePositiveAmount('0.5'), 0.5);
+  assert.equal(parsePositiveAmount('1,25'), 1.25);
+  assert.equal(parsePositiveAmount('.3'), 0.3);
+  assert.equal(parsePositiveAmount('2'), 2);
+  assert.equal(parsePositiveAmount(''), null);
+  assert.equal(parsePositiveAmount('-0.3'), null);
+  assert.equal(parsePositiveAmount('0'), null);
+  assert.equal(parsePositiveAmount('abc'), null);
+});
 import { FakeSmartDevice, seeded } from '../src/smartDevice.ts';
 
 // UC-1 "View Daily Summary & Goals"

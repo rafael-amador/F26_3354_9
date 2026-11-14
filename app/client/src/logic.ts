@@ -13,6 +13,23 @@ export function refillVolume(bottleSizeMl: number, refills: number): number {
   return Math.max(0, Math.round(bottleSizeMl * refills));
 }
 
+/** Liters per US gallon, as in the team's LogWater.java. */
+export const LITERS_PER_GALLON = 3.785412;
+
+/** Client preview of LogWater.enter's conversion: gallons -> liters, truncated to two decimals (server is authoritative). */
+export function toLiters(amount: number, isLiter: boolean): number {
+  const a = isLiter ? amount : amount * LITERS_PER_GALLON;
+  return Math.floor(a * 100 + 1e-9) / 100;
+}
+
+/** Parses a positive decimal amount (water in L or gal); null when empty, not a number, or <= 0. */
+export function parsePositiveAmount(text: string): number | null {
+  const t = text.trim().replace(',', '.');
+  if (!/^\d*(\.\d+)?$/.test(t) || t === '' || t === '.') return null;
+  const n = parseFloat(t);
+  return n > 0 ? n : null;
+}
+
 /** SD-4 "isEnabled(moduleId)" evaluated against the list fetched from the server. Unknown modules count as enabled. */
 export function isEnabled(modules: ModuleState[] | null, moduleId: string): boolean {
   if (!modules) return true;

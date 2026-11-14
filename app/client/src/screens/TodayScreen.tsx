@@ -35,7 +35,7 @@ export default function TodayScreen({ refreshKey }: { refreshKey: number }) {
           </Card>
           <Card title="Water">
             <Text style={s.body}>
-              {data.waterMl} / {data.waterGoalMl} ml
+              {data.waterLiters.toFixed(2)} L ({data.waterMl} / {data.waterGoalMl} ml)
             </Text>
             <ProgressBar value={progress(data.waterMl, data.waterGoalMl)} color="#2A8BD8" />
             <Text style={s.muted}>

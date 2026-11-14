@@ -38,7 +38,7 @@ public class DailySummaryService {
     }
 
     public record DailySummary(LocalDate date, int calories, int calorieGoal, double proteinG, double carbsG,
-                               double fatG, int waterMl, int waterGoalMl, int bottleSizeMl, int steps, int stepGoal,
+                               double fatG, int waterMl, double waterLiters, int waterGoalMl, int bottleSizeMl, int steps, int stepGoal,
                                Integer latestHeartRate, int mealCount, int waterEntryCount, List<String> messages) {}
 
     @Transactional(readOnly = true)
@@ -52,7 +52,9 @@ public class DailySummaryService {
         double p = round1(m.stream().mapToDouble(MealEntry::getProteinG).sum());
         double c = round1(m.stream().mapToDouble(MealEntry::getCarbsG).sum());
         double f = round1(m.stream().mapToDouble(MealEntry::getFatG).sum());
-        int ml = w.stream().mapToInt(WaterEntry::getVolumeMl).sum();
+        // Water is stored in liters (team repo code LogWater.java); goals stay in ml (Student.waterGoalMl, §5.2).
+        double liters = Math.round(w.stream().mapToDouble(WaterEntry::getAmount).sum() * 100) / 100.0;
+        int ml = (int) Math.round(liters * 1000);
         int steps = a.stream().mapToInt(ActivityRecord::getSteps).sum();
         Integer hr = a.stream().filter(r -> r.getHeartRate() != null).findFirst().map(ActivityRecord::getHeartRate).orElse(null);
 
@@ -68,7 +70,7 @@ public class DailySummaryService {
         }
         msgs.addAll(Student.safetyWarnings(s.getCalorieGoal(), s.getWaterGoalMl(), s.getStepGoal()));
 
-        return new DailySummary(date, cal, s.getCalorieGoal(), p, c, f, ml, s.getWaterGoalMl(), s.getBottleSizeMl(),
+        return new DailySummary(date, cal, s.getCalorieGoal(), p, c, f, ml, liters, s.getWaterGoalMl(), s.getBottleSizeMl(),
                 steps, s.getStepGoal(), hr, m.size(), w.size(), msgs);
     }
 

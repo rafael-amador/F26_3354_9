@@ -81,7 +81,9 @@ export const api = {
   getMenu: (location: string) => get<T.DiningItem[]>(`/api/nutrition/menu?location=${encodeURIComponent(location)}`),
   saveMealEntry: (b: T.MealEntryRequest) => post<T.SaveResult<T.MealEntry>>('/api/nutrition/meals', b),
   meals: () => get<T.MealEntry[]>('/api/nutrition/meals'),
-  saveWaterEntry: (volumeMl: number) => post<T.SaveResult<T.WaterEntry>>('/api/nutrition/water', { volumeMl }),
+  // team repo code LogWater.enter(userId, amount, isLiter): liters or gallons
+  saveWaterEntry: (amount: number, isLiter: boolean) =>
+    post<T.WaterSaveResult>('/api/nutrition/water', { amount, isLiter }),
   waterEntries: () => get<T.WaterEntry[]>('/api/nutrition/water'),
 
   // UC-2 / SD-2 — ActivityController

@@ -124,6 +124,40 @@ class Uc1NutritionTest extends ApiTestSupport {
         POST("/api/nutrition/water", a, Map.of("volumeMl", 99999), 400);
     }
 
+    /**
+     * D2 §4.1 test plan through the REST API: "entering three 500 mL refills should result in a daily total of
+     * 1,500 mL"; team repo code LogWater: liters or gallons, stored as liters, message "Added ...L to ...".
+     */
+    @Test
+    void d2_threeRefillsOf500mlTotal1500ml_andGallonsAreConverted() throws Exception {
+        Account a = newStudent("refill");
+        JsonNode last = null;
+        for (int i = 0; i < 3; i++) {
+            last = POST("/api/nutrition/water", a, Map.of("amount", 0.5, "isLiter", true), 201);
+        }
+        assertThat(last.get("summary").get("waterMl").asInt()).isEqualTo(1500);
+        assertThat(last.get("summary").get("waterLiters").asDouble()).isEqualTo(1.5);
+        assertThat(last.get("saved").get("amount").asDouble()).isEqualTo(0.5);
+        assertThat(last.get("message").asText()).isEqualTo("Added 0.5L to Name " + a.username());
+        assertThat(GET("/api/nutrition/water", a, 200)).hasSize(3);
+
+        JsonNode gal = POST("/api/nutrition/water", a, Map.of("amount", 0.3, "isLiter", false), 201);   // TC-1 values
+        assertThat(gal.get("saved").get("amount").asDouble()).isEqualTo(1.13);
+        assertThat(gal.get("message").asText()).startsWith("Added 1.13L to ");
+        assertThat(gal.get("summary").get("waterMl").asInt()).isEqualTo(2630);
+    }
+
+    /** D2 §4.1: "negative or missing values should be rejected with an appropriate validation message" (TC-2). */
+    @Test
+    void d2_negativeOrMissingWaterIsRejectedWithAMessage() throws Exception {
+        Account a = newStudent("badwater");
+        JsonNode neg = POST("/api/nutrition/water", a, Map.of("amount", -0.3, "isLiter", true), 400);
+        assertThat(neg.get("message").asText()).isEqualTo("Negative amount.");
+        JsonNode missing = POST("/api/nutrition/water", a, Map.of("isLiter", true), 400);
+        assertThat(missing.get("message").asText()).isEqualTo("Amount is required.");
+        assertThat(GET("/api/nutrition/water", a, 200)).isEmpty();
+    }
+
     /** UC-1 "View Daily Summary & Goals": totals of calories, macros and water vs the student's goals. */
     @Test
     void dailySummaryTotalsEverythingAgainstGoals() throws Exception {

@@ -39,6 +39,11 @@ let r = await call('POST', '/api/nutrition/meals', alice, { source: 'MANUAL', fo
 check('UC-1 FR-2 manual meal saved', r.status === 201, `today ${r.data?.summary?.calories} kcal`);
 r = await call('POST', '/api/nutrition/water', alice, { volumeMl: 500 });
 check('UC-1 FR-6 water logged', r.status === 201, r.data?.summary?.messages?.[0]);
+// team repo code LogWater.java / D2 §4.3 TC-1: 0.3 gallons -> 1.13 L
+r = await call('POST', '/api/nutrition/water', alice, { amount: 0.3, isLiter: false });
+check('UC-1 FR-6 water in gallons stored as liters', r.status === 201 && r.data?.saved?.amount === 1.13, r.data?.message);
+r = await call('POST', '/api/nutrition/water', alice, { amount: -0.3, isLiter: true });
+check('UC-1 FR-6 negative water rejected', r.status === 400 && r.data?.message === 'Negative amount.', r.data?.message);
 r = await call('GET', '/api/nutrition/menu?location=Dining%20Hall', alice);
 check('UC-1 FR-8 dining menu with macros', r.status === 200 && r.data.length > 0, `${r.data?.length} items`);
 if (r.status === 200) {

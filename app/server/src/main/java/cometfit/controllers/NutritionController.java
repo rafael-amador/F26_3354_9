@@ -27,6 +27,7 @@ import cometfit.services.Clock;
 import cometfit.services.DailySummaryService;
 import cometfit.services.DailySummaryService.DailySummary;
 import cometfit.services.DiningMenuService;
+import cometfit.services.WaterLogService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -52,11 +53,12 @@ public class NutritionController extends BaseController {
     private final MealEntryRepository meals;
     private final WaterEntryRepository water;
     private final DiningItemRepository diningItems;
+    private final WaterLogService waterLog;
     private final Clock clock;
 
     public NutritionController(AuthService authService, AIFoodService aiFoodService, DiningMenuService diningMenuService,
                                DailySummaryService summaries, MealEntryRepository meals, WaterEntryRepository water,
-                               DiningItemRepository diningItems, Clock clock) {
+                               DiningItemRepository diningItems, WaterLogService waterLog, Clock clock) {
         super(authService);
         this.aiFoodService = aiFoodService;
         this.diningMenuService = diningMenuService;
@@ -64,6 +66,7 @@ public class NutritionController extends BaseController {
         this.meals = meals;
         this.water = water;
         this.diningItems = diningItems;
+        this.waterLog = waterLog;
         this.clock = clock;
     }
 
@@ -76,7 +79,15 @@ public class NutritionController extends BaseController {
                                    @NotNull MealSource source,
                                    Long diningItemId) {}
 
-    public record WaterRequest(@NotNull @Min(1) @Max(5000) Integer volumeMl) {}
+    /**
+     * Body of saveWaterEntry. {@code amount} + {@code isLiter} = team repo code LogWater.enter(userId, amount, isLiter)
+     * (liters or gallons; isLiter defaults to true). {@code volumeMl} = D1/D2 class diagram saveWaterEntry(volumeMl),
+     * kept as an alternative input in milliliters (A-35). Validation messages come from WaterLogService.
+     */
+    public record WaterRequest(Double amount, Boolean isLiter, Integer volumeMl) {}
+
+    /** Save result for water: entry + updated summary + the LogWater message "Added 1.13L to Jane Doe". */
+    public record WaterSaveResult(WaterEntry saved, DailySummary summary, String message) {}
 
     /** "show estimate for review" (SD-1): the unsaved MealEntry draft plus the individual recognised foods. */
     public record PhotoEstimate(MealEntryView draft, List<FoodEstimate> foodItems, String notice) {}
@@ -169,14 +180,23 @@ public class NutritionController extends BaseController {
 
     // ---- water ---------------------------------------------------------------------------------------------
 
-    /** saveWaterEntry(volumeMl) — SD-1 "log water (bottle size / refill) -> saveWaterEntry(volume) -> insert WaterEntry". FR-6. */
+    /**
+     * saveWaterEntry(volumeMl) — SD-1 "log water (bottle size / refill) -> saveWaterEntry(volume) -> insert WaterEntry".
+     * FR-6. The unit itself is team repo code LogWater.enter (liters or gallons, stored as liters): WaterLogService.
+     */
     @PostMapping("/water")
     @ResponseStatus(HttpStatus.CREATED)
-    public SaveResult<WaterEntry> saveWaterEntry(@RequestHeader("Authorization") String token,
-                                                 @Valid @RequestBody WaterRequest r) {
+    public WaterSaveResult saveWaterEntry(@RequestHeader("Authorization") String token,
+                                          @RequestBody WaterRequest r) {
         Student s = requireStudent(token, Permissions.NUTRITION);
-        WaterEntry w = water.save(new WaterEntry(s.getUserId(), r.volumeMl(), Instant.now()));
-        return new SaveResult<>(w, summaries.getDailySummary(s, clock.today()));
+        Double amount = r.amount();
+        boolean isLiter = r.isLiter() == null || r.isLiter();
+        if (amount == null && r.volumeMl() != null) {   // class-diagram form: milliliters -> liters
+            amount = r.volumeMl() / 1000.0;
+            isLiter = true;
+        }
+        WaterLogService.Logged logged = waterLog.enter(s.getUserId(), amount, isLiter);
+        return new WaterSaveResult(logged.entry(), summaries.getDailySummary(s, clock.today()), logged.message());
     }
 
     @GetMapping("/water")

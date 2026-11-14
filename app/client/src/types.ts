@@ -33,10 +33,12 @@ export interface MealEntryRequest {
 export interface FoodEstimate { foodName: string; calories: number; proteinG: number; carbsG: number; fatG: number; confidence: number }
 export interface PhotoEstimate { draft: MealEntry; foodItems: FoodEstimate[]; notice: string }
 export interface DiningItem { itemId: number; name: string; location: string; calories: number; proteinG: number; carbsG: number; fatG: number }
-export interface WaterEntry { entryId: number; volumeMl: number; loggedAt: string }
+// Water is stored in liters (team repo code LogWater.java); volumeMl is derived (class diagram WaterEntry.volumeMl).
+export interface WaterEntry { entryId: number; amount: number; volumeMl: number; loggedAt: string }
+export interface WaterSaveResult { saved: WaterEntry; summary: DailySummary; message: string }
 export interface DailySummary {
   date: string; calories: number; calorieGoal: number; proteinG: number; carbsG: number; fatG: number;
-  waterMl: number; waterGoalMl: number; bottleSizeMl: number; steps: number; stepGoal: number;
+  waterMl: number; waterLiters: number; waterGoalMl: number; bottleSizeMl: number; steps: number; stepGoal: number;
   latestHeartRate: number | null; mealCount: number; waterEntryCount: number; messages: string[];
 }
 export interface SaveResult<T> { saved: T; summary: DailySummary }

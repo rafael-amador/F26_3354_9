@@ -3,11 +3,12 @@
 //   [Dining menu item]  browse dining menu -> getMenu(location) -> menu list -> select item   (FR-8)
 //   [Manual entry]      enter food name and calories                                           (FR-2)
 //   then saveMealEntry(entry); "log water (bottle size / refill)" -> saveWaterEntry(volume)    (FR-6)
+//   Water input in liters or gallons: team repo code LogWater.java (stage 2).
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import { Platform, ScrollView, Text, View } from 'react-native';
 import { api, ApiError } from '../api';
-import { parseMacro, parsePositiveInt, progress, refillVolume, shortTime } from '../logic';
+import { parseMacro, parsePositiveAmount, parsePositiveInt, progress, refillVolume, shortTime, toLiters } from '../logic';
 import type { DailySummary, DiningItem, MealSource, PhotoEstimate } from '../types';
 import { Banner, Button, Card, colors, Field, MaintenanceNotice, ProgressBar, Row, s } from '../ui';
 import { useAsync } from '../useAsync';
@@ -85,16 +86,19 @@ type SavedFn = (s: DailySummary, text: string) => void;
 type ErrFn = (e: unknown) => void;
 
 // ---- FR-6 water -----------------------------------------------------------------------------------------------
+// Team repo code LogWater.enter(userId, amount, isLiter): the student can enter liters or gallons; the server stores
+// liters truncated to two decimals and answers "Added 1.13L to Jane Doe". Refill buttons = Proposal §4 bottle refills.
 function WaterCard({ summary, onSaved, onError }: { summary: DailySummary | null; onSaved: SavedFn; onError: ErrFn }) {
   const [custom, setCustom] = useState('');
+  const [isLiter, setIsLiter] = useState(true);
   const [busy, setBusy] = useState(false);
   const bottle = summary?.bottleSizeMl ?? 500;
 
-  async function log(volumeMl: number) {
+  async function log(amount: number, liter: boolean) {
     setBusy(true);
     try {
-      const r = await api.saveWaterEntry(volumeMl);
-      onSaved(r.summary, `Logged ${volumeMl} ml of water.`);
+      const r = await api.saveWaterEntry(amount, liter);
+      onSaved(r.summary, r.message);
       setCustom('');
     } catch (e) {
       onError(e);
@@ -102,13 +106,14 @@ function WaterCard({ summary, onSaved, onError }: { summary: DailySummary | null
       setBusy(false);
     }
   }
-  const customMl = parsePositiveInt(custom, 5000);
+  const customAmount = parsePositiveAmount(custom);
+  const preview = customAmount !== null ? toLiters(customAmount, isLiter) : null;
   return (
     <Card title="Water">
       {summary ? (
         <>
           <Text style={s.body}>
-            {summary.waterMl} / {summary.waterGoalMl} ml today
+            {summary.waterLiters.toFixed(2)} L ({summary.waterMl} / {summary.waterGoalMl} ml) today
           </Text>
           <ProgressBar value={progress(summary.waterMl, summary.waterGoalMl)} color="#2A8BD8" />
           {summary.waterMl < summary.waterGoalMl ? (
@@ -118,21 +123,30 @@ function WaterCard({ summary, onSaved, onError }: { summary: DailySummary | null
       ) : null}
       <Row>
         <View style={{ flex: 1 }}>
-          <Button label={`+1 refill (${bottle} ml)`} onPress={() => log(refillVolume(bottle, 1))} busy={busy} testID="refill" />
+          <Button label={`+1 refill (${bottle} ml)`} onPress={() => log(refillVolume(bottle, 1) / 1000, true)} busy={busy} testID="refill" />
         </View>
         <View style={{ flex: 1 }}>
-          <Button kind="secondary" label={`+½ bottle (${refillVolume(bottle, 0.5)} ml)`} onPress={() => log(refillVolume(bottle, 0.5))} disabled={busy} />
+          <Button kind="secondary" label={`+½ bottle (${refillVolume(bottle, 0.5)} ml)`} onPress={() => log(refillVolume(bottle, 0.5) / 1000, true)} disabled={busy} />
         </View>
       </Row>
       <Row>
         <View style={{ flex: 2 }}>
-          <Field label="Other amount (ml)" value={custom} onChangeText={setCustom} keyboardType="number-pad" />
+          <Field label={`Other amount (${isLiter ? 'liters' : 'gallons'})`} value={custom} onChangeText={setCustom} keyboardType="decimal-pad" testID="water-amount" />
         </View>
         <View style={{ flex: 1 }}>
-          <Button label="Add" onPress={() => customMl && log(customMl)} disabled={!customMl || busy} />
+          <Button kind={isLiter ? 'primary' : 'secondary'} label="L" onPress={() => setIsLiter(true)} testID="unit-liter" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button kind={!isLiter ? 'primary' : 'secondary'} label="gal" onPress={() => setIsLiter(false)} testID="unit-gallon" />
         </View>
       </Row>
-      <Text style={s.muted}>Bottle size can be changed in Profile → Goals.</Text>
+      <Button
+        label={preview !== null ? `Add ${preview} L` : 'Add'}
+        onPress={() => customAmount !== null && log(customAmount, isLiter)}
+        disabled={customAmount === null || busy}
+        testID="water-add"
+      />
+      <Text style={s.muted}>Water is saved in liters (gallons are converted). Bottle size can be changed in Profile → Goals.</Text>
     </Card>
   );
 }
