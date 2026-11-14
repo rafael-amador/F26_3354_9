@@ -76,6 +76,7 @@ public class ProfileController extends BaseController {
             throw ApiException.badRequest("Current password is incorrect");
         }
         users.save(u);
+        authService.forgetTrustedDevices(u.getUserId());   // new password -> code needed again everywhere (A-39)
     }
 
     /** Student.setGoals — saves and returns safety warnings (NFR Safety). */

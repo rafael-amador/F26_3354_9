@@ -30,6 +30,29 @@ export function parsePositiveAmount(text: string): number | null {
   return n > 0 ? n : null;
 }
 
+// ---- TD-1 sign-in helpers ----------------------------------------------------------------------------------------
+
+/** TD-1 (2): "larger screen (for example a laptop browser)". Width in dp/px at which the QR code is shown (A-39). */
+export const LARGE_SCREEN_MIN_WIDTH = 768;
+export function isLargeScreen(width: number): boolean {
+  return width >= LARGE_SCREEN_MIN_WIDTH;
+}
+
+/** A device remembered for one username (TD-1 (3)). */
+export interface RememberedDevice { token: string; trustedUntil: string }
+
+/** Storage key of the remembered device for a username (usernames are case-insensitive, A-4). */
+export function deviceKey(username: string): string {
+  return `cometfit.device.${username.trim().toLowerCase()}`;
+}
+
+/** True while the remembered device is inside its 30 days (the server re-checks; this only hides the code field). */
+export function isStillRemembered(d: RememberedDevice | null, now: Date = new Date()): boolean {
+  if (!d || !d.token) return false;
+  const until = Date.parse(d.trustedUntil);
+  return Number.isFinite(until) && until > now.getTime();
+}
+
 /** SD-4 "isEnabled(moduleId)" evaluated against the list fetched from the server. Unknown modules count as enabled. */
 export function isEnabled(modules: ModuleState[] | null, moduleId: string): boolean {
   if (!modules) return true;

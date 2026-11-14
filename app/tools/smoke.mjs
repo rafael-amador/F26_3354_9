@@ -34,6 +34,14 @@ const alice = await login('alice', 'COMETFITALICE234');
 const bob = await login('bob', 'COMETFITBOBBY567');
 const dev = await login('dev', 'COMETFITDEVADMIN');
 
+// TD-1 (3): "Remember this device for 30 days" -> next sign-in with username + password only
+{
+  const first = await call('POST', '/api/auth/login', null, { username: 'bob', password: PASSWORD, totpCode: totp('COMETFITBOBBY567'), rememberDevice: true });
+  check('TD-1 remember this device', first.status === 200 && !!first.data?.deviceToken, `trusted until ${first.data?.trustedUntil}`);
+  const again = await call('POST', '/api/auth/login', null, { username: 'bob', password: PASSWORD, deviceToken: first.data?.deviceToken });
+  check('TD-1 remembered device signs in without a code', again.status === 200 && again.data?.rememberedDevice === true, `HTTP ${again.status}`);
+}
+
 // UC-1
 let r = await call('POST', '/api/nutrition/meals', alice, { source: 'MANUAL', foodName: 'Smoke salad', calories: 320, proteinG: 8, carbsG: 20, fatG: 12 });
 check('UC-1 FR-2 manual meal saved', r.status === 201, `today ${r.data?.summary?.calories} kcal`);

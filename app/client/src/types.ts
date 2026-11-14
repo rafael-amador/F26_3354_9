@@ -10,7 +10,11 @@ export interface UserView {
   isPublic: boolean;
   permissions: string[];
 }
-export interface LoginResponse { token: string; expiresAt: string; user: UserView }
+export interface LoginResponse {
+  token: string; expiresAt: string; user: UserView;
+  // TD-1 (3): set when this device was just remembered
+  deviceToken: string | null; trustedUntil: string | null; rememberedDevice: boolean;
+}
 export interface Registration { user: UserView; totpSecret: string; otpauthUri: string }
 
 export interface Profile {

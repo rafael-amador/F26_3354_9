@@ -26,6 +26,41 @@ test('water amount parsing accepts positive decimals only', () => {
   assert.equal(parsePositiveAmount('abc'), null);
 });
 import { FakeSmartDevice, seeded } from '../src/smartDevice.ts';
+import { deviceKey, isLargeScreen, isStillRemembered } from '../src/logic.ts';
+import { qrMatrix } from '../src/qr.ts';
+
+// TD-1 (2): QR code only on a larger screen (laptop browser), not on the phone's own screen
+test('QR code is shown only on larger screens', () => {
+  assert.equal(isLargeScreen(390), false);   // phone
+  assert.equal(isLargeScreen(767), false);
+  assert.equal(isLargeScreen(768), true);
+  assert.equal(isLargeScreen(1440), true);   // laptop browser
+});
+
+// TD-1 (2): the QR encodes the otpauth setup link
+test('QR matrix for the authenticator link is a square of modules with finder patterns', () => {
+  const m = qrMatrix('otpauth://totp/CometFit:alice?secret=COMETFITALICE234&issuer=CometFit');
+  assert.ok(m.length >= 21 && (m.length - 17) % 4 === 0);    // QR version size 17 + 4v
+  assert.ok(m.every((row) => row.length === m.length));
+  // top-left finder pattern: dark 7x7 border
+  for (let i = 0; i < 7; i++) {
+    assert.equal(m[0][i], true);
+    assert.equal(m[i][0], true);
+    assert.equal(m[6][i], true);
+  }
+  assert.equal(m[1][1], false);
+});
+
+// TD-1 (3): remembered device for 30 days
+test('remembered device is used only until trustedUntil, per username', () => {
+  const now = new Date('2026-11-14T12:00:00Z');
+  assert.equal(isStillRemembered({ token: 'abc', trustedUntil: '2026-12-14T12:00:00Z' }, now), true);
+  assert.equal(isStillRemembered({ token: 'abc', trustedUntil: '2026-11-14T11:59:59Z' }, now), false);
+  assert.equal(isStillRemembered({ token: '', trustedUntil: '2026-12-14T12:00:00Z' }, now), false);
+  assert.equal(isStillRemembered(null, now), false);
+  assert.equal(deviceKey(' Alice '), deviceKey('alice'));
+  assert.notEqual(deviceKey('alice'), deviceKey('bob'));
+});
 
 // UC-1 "View Daily Summary & Goals"
 test('progress is clamped to 0..1 and safe for a zero goal', () => {

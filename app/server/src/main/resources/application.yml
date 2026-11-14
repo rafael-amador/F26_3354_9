@@ -36,6 +36,8 @@ cometfit:
   zone: ${COMETFIT_ZONE:America/Chicago}
   # Session lifetime in hours (A-6)
   session-hours: ${COMETFIT_SESSION_HOURS:12}
+  # TD-1 (3): "Remember this device for 30 days" (A-39)
+  remember-device-days: ${COMETFIT_REMEMBER_DEVICE_DAYS:30}
   # Base64 AES-256 key used to encrypt sensitive user fields at rest (NFR Security, A-5).
   # The default is a DEVELOPMENT key only. Set COMETFIT_DATA_KEY in any shared environment.
   data-key: ${COMETFIT_DATA_KEY:Q29tZXRGaXQtZGV2LW9ubHkta2V5LWNoYW5nZS1tZSE=}

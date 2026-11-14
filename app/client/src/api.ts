@@ -61,7 +61,9 @@ export const api = {
   // Log In (Password + TOTP) — Fig 4.3, NFR Security
   register: (b: { username: string; password: string; email: string; displayName?: string }) =>
     post<T.Registration>('/api/auth/register', b),
-  login: (b: { username: string; password: string; totpCode: string }) => post<T.LoginResponse>('/api/auth/login', b),
+  // TD-1 (3): totpCode may be omitted on a remembered device (deviceToken); rememberDevice = "Remember this device for 30 days"
+  login: (b: { username: string; password: string; totpCode?: string; rememberDevice?: boolean; deviceToken?: string }) =>
+    post<T.LoginResponse>('/api/auth/login', b),
   logout: () => post<void>('/api/auth/logout'),
 
   // FR-3 own profile, goals (NFR Safety warnings)
