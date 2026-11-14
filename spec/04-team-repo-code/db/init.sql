@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS USERS (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    firstName VARCHAR(64) NOT NULL,
+    lastName VARCHAR(64) NOT NULL
+);
+
+INSERT INTO USERS (user_id, firstName, lastName) VALUES
+    (1, 'Jane', 'Doe'),
+    (2, 'John', 'Smith');
+
+CREATE TABLE IF NOT EXISTS WATER_LOG (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    userId VARCHAR(64) NOT NULL REFERENCES USERS(user_id),
+    amount FLOAT NOT NULL,
+    loggedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

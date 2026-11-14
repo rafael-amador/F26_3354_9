@@ -1,0 +1,18 @@
+{
+  "deliverable_2_draft": {
+    "source": "Google Docs file 1BFmWtwS40e7X8v2Iym58BMIGDbkL1SWEDOusWArtSrU (Team_09_SE3354_F26_Final_Project Report)",
+    "doc_modified_time": "2026-11-14T01:28:30.746Z",
+    "exported_as": "application/pdf via Google Drive export",
+    "file": "spec/02-deliverable-2-draft/Team_09_SE3354_F26_Final_Project_Report_draft_2026-11-14.pdf",
+    "pages": 24,
+    "note": "Not yet submitted on Canvas; the final submitted PDF will be compared against this snapshot."
+  },
+  "team_repo_code": {
+    "repo": "https://github.com/rafael-amador/F26_3354_9",
+    "commit": "e3c4232470b4102a3180be70ee1caf0c599246cb",
+    "author": "Richard Jang",
+    "commit_time": "2026-11-12T23:54:23-06:00",
+    "dir": "spec/04-team-repo-code/"
+  },
+  "team_decisions": "spec/03-team-decisions/ (commit 26ef960)"
+}
