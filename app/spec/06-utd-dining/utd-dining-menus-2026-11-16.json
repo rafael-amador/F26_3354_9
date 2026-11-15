@@ -1,0 +1,520 @@
+{
+  "title": "UTD Dining locations and menu items with published nutrition (evidence for TD-6)",
+  "collected": "2026-11-15 by Rafael Amador (via assistant) from UTD's official dining pages",
+  "location_list_source": "https://services.utdallas.edu/dining/ (official UT Dallas Dining Services hours page, full schedule for Nov 15-21, 2026)",
+  "menu_source": "https://dineoncampus.com/utdallasdining/ (UTD Dining's official menu site, linked from https://services.utdallas.edu/dining/menus/)",
+  "notes": [
+    "Every item below was listed on its location's Dine On Campus menu for Monday 2026-11-16; the source URL is given per location.",
+    "Numbers are copied from each item's nutrition label on that site. null means the site did not publish that value; do not invent it.",
+    "Dining Hall West rotates daily; these are the items on the Monday 11/16 lunch menu."
+  ],
+  "other_locations_open_per_official_hours": [
+    "Comet Pi (RHA)",
+    "The Market (RHA, ECSW, JSOM, SCI, SU)",
+    "Starbucks @ JSOM",
+    "Einstein Bros Bagels (PS3)",
+    "Buffalo Wild Wings (SU)",
+    "Crave (SU)",
+    "Kalachandji's Express (SU)",
+    "Tea Co (SU)",
+    "Bookstore Coffee Shop (ACB)",
+    "Food Truck Park (SU)"
+  ],
+  "locations": [
+    {
+      "name": "Dining Hall West",
+      "building": "Andromeda Hall (RHA)",
+      "menu": "Lunch, Monday 2026-11-16 (rotates daily)",
+      "source": "https://dineoncampus.com/utdallasdining/whats-on-the-menu/dining-hall-west/2026-11-16/lunch",
+      "macros_published": false,
+      "items": [
+        {
+          "name": "Italian Nachos",
+          "serving": "6 ounce",
+          "calories": 220,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Beef Bolognese",
+          "serving": "1/2 cup",
+          "calories": 160,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Spaghetti",
+          "serving": "1/2 cup",
+          "calories": 100,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Grilled Chicken",
+          "serving": "1 each",
+          "calories": 150,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Jasmine Rice",
+          "serving": "1 cup",
+          "calories": 360,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Creamy Polenta",
+          "serving": "1/2 cup",
+          "calories": 110,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Roasted Brussels Sprouts",
+          "serving": "1/2 cup",
+          "calories": 45,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Potato Wedges",
+          "serving": "3 ounce",
+          "calories": 170,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Cheese Pizza",
+          "serving": "1 slice",
+          "calories": 190,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Pepperoni Pizza",
+          "serving": "1 slice",
+          "calories": 210,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Chicken Broccoli Alfredo Pizza",
+          "serving": "1 slice",
+          "calories": 260,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        }
+      ]
+    },
+    {
+      "name": "Chick-fil-A",
+      "building": "Student Union (SU)",
+      "menu": "Every Day",
+      "source": "https://dineoncampus.com/utdallasdining/whats-on-the-menu/chick-fil-a/2026-11-16/every-day",
+      "macros_published": true,
+      "items": [
+        {
+          "name": "Chicken Biscuit",
+          "serving": "1 each",
+          "calories": 460,
+          "fat_g": 23,
+          "carbs_g": 45,
+          "protein_g": 19
+        },
+        {
+          "name": "Hash Browns",
+          "serving": "Small",
+          "calories": 270,
+          "fat_g": 18,
+          "carbs_g": 23,
+          "protein_g": 3
+        },
+        {
+          "name": "Chicken Sandwich",
+          "serving": "1 each",
+          "calories": 420,
+          "fat_g": 18,
+          "carbs_g": 41,
+          "protein_g": 29
+        },
+        {
+          "name": "Cool Wrap",
+          "serving": "1 each",
+          "calories": 350,
+          "fat_g": 13,
+          "carbs_g": 29,
+          "protein_g": 42
+        },
+        {
+          "name": "Deluxe Sandwich",
+          "serving": "1 each",
+          "calories": 490,
+          "fat_g": 22,
+          "carbs_g": 43,
+          "protein_g": 32
+        },
+        {
+          "name": "Grilled Chicken Club Sandwich",
+          "serving": "1 each",
+          "calories": 520,
+          "fat_g": 22,
+          "carbs_g": 45,
+          "protein_g": 37
+        },
+        {
+          "name": "Grilled Chicken Sandwich",
+          "serving": "1 each",
+          "calories": 390,
+          "fat_g": 11,
+          "carbs_g": 45,
+          "protein_g": 28
+        },
+        {
+          "name": "Fruit Cup",
+          "serving": "1 each",
+          "calories": 60,
+          "fat_g": null,
+          "carbs_g": 14,
+          "protein_g": 1
+        }
+      ]
+    },
+    {
+      "name": "Panda Express",
+      "building": "Student Union (SU)",
+      "menu": "Every Day",
+      "source": "https://dineoncampus.com/utdallasdining/whats-on-the-menu/panda-express/2026-11-16/every-day",
+      "macros_published": true,
+      "items": [
+        {
+          "name": "Black Pepper Chicken",
+          "serving": "6.3oz",
+          "calories": 280,
+          "fat_g": 19,
+          "carbs_g": 15,
+          "protein_g": 13
+        },
+        {
+          "name": "Kung Pao Chicken",
+          "serving": "6.7oz",
+          "calories": 320,
+          "fat_g": 21,
+          "carbs_g": 15,
+          "protein_g": 17
+        },
+        {
+          "name": "Mushroom Chicken",
+          "serving": "5.7oz",
+          "calories": 220,
+          "fat_g": 14,
+          "carbs_g": 10,
+          "protein_g": 13
+        },
+        {
+          "name": "The Original Orange Chicken",
+          "serving": "5.9oz",
+          "calories": 510,
+          "fat_g": 24,
+          "carbs_g": 53,
+          "protein_g": 26
+        },
+        {
+          "name": "String Bean Chicken Breast",
+          "serving": "5.6oz",
+          "calories": 210,
+          "fat_g": 12,
+          "carbs_g": 13,
+          "protein_g": 12
+        },
+        {
+          "name": "SweetFire Chicken Breast",
+          "serving": "5.8oz",
+          "calories": 360,
+          "fat_g": 15,
+          "carbs_g": 40,
+          "protein_g": 15
+        },
+        {
+          "name": "Beijing Beef",
+          "serving": "5.6oz",
+          "calories": 480,
+          "fat_g": 27,
+          "carbs_g": 46,
+          "protein_g": 14
+        },
+        {
+          "name": "Broccoli Beef",
+          "serving": "5.4oz",
+          "calories": 150,
+          "fat_g": 7,
+          "carbs_g": 13,
+          "protein_g": 9
+        }
+      ]
+    },
+    {
+      "name": "The Halal Shack",
+      "building": "Student Union (SU)",
+      "menu": "Every Day",
+      "source": "https://dineoncampus.com/utdallasdining/whats-on-the-menu/the-halal-shack/2026-11-16/every-day",
+      "macros_published": false,
+      "items": [
+        {
+          "name": "Halal Beef & Chicken Rice Bowl",
+          "serving": "1 bowl",
+          "calories": 580,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Halal Chicken Rice Bowl",
+          "serving": "1 bowl",
+          "calories": 570,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Halal Hummus Rice Bowl",
+          "serving": "1 bowl",
+          "calories": 360,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Halal Rice Bowl with Beef",
+          "serving": "1 bowl",
+          "calories": 590,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Halal Rice Bowl with Falafel",
+          "serving": "1 bowl",
+          "calories": 490,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Halal Beef Naan Roll",
+          "serving": "1 roll",
+          "calories": 760,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        },
+        {
+          "name": "Halal Chicken Naan Roll",
+          "serving": "1 roll",
+          "calories": 667,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        }
+      ]
+    },
+    {
+      "name": "Firehouse Subs",
+      "building": "Student Union (SU)",
+      "menu": "Every Day",
+      "source": "https://dineoncampus.com/utdallasdining/whats-on-the-menu/firehouse-subs/2026-11-16/every-day",
+      "macros_published": true,
+      "items": [
+        {
+          "name": "Firehouse Chopped Salad with Grilled Chicken",
+          "serving": "1 each",
+          "calories": 380,
+          "fat_g": 10,
+          "carbs_g": 14,
+          "protein_g": 57
+        },
+        {
+          "name": "Firehouse Chopped Salad with Turkey",
+          "serving": "1 each",
+          "calories": 220,
+          "fat_g": 7,
+          "carbs_g": 15,
+          "protein_g": 29
+        },
+        {
+          "name": "Firehouse Chopped Salad with Ham",
+          "serving": "1 each",
+          "calories": 290,
+          "fat_g": 9,
+          "carbs_g": 27,
+          "protein_g": 30
+        },
+        {
+          "name": "Chopped Hook & Ladder Salad",
+          "serving": "1 each",
+          "calories": 250,
+          "fat_g": 8,
+          "carbs_g": 21,
+          "protein_g": 30
+        },
+        {
+          "name": "Chocolate Chip Cookie",
+          "serving": "1 each",
+          "calories": 310,
+          "fat_g": 15,
+          "carbs_g": 44,
+          "protein_g": 4
+        },
+        {
+          "name": "Brownie",
+          "serving": "1 each",
+          "calories": 430,
+          "fat_g": 20,
+          "carbs_g": 61,
+          "protein_g": 4
+        }
+      ]
+    },
+    {
+      "name": "Taco Bell Cantina",
+      "building": "Parking Structure 3 (PS3)",
+      "menu": "Every Day",
+      "source": "https://dineoncampus.com/utdallasdining/whats-on-the-menu/taco-bell-cantina/2026-11-16/every-day",
+      "macros_published": true,
+      "items": [
+        {
+          "name": "Burrito Supreme",
+          "serving": "1 each",
+          "calories": 400,
+          "fat_g": 5,
+          "carbs_g": 51,
+          "protein_g": 21
+        },
+        {
+          "name": "Cheesy Bean and Rice Burrito",
+          "serving": "1 each",
+          "calories": 480,
+          "fat_g": 5,
+          "carbs_g": 60,
+          "protein_g": 12
+        },
+        {
+          "name": "Beef Chalupa",
+          "serving": "1 each",
+          "calories": 410,
+          "fat_g": 5,
+          "carbs_g": 30,
+          "protein_g": 12
+        },
+        {
+          "name": "Chicken Chalupa",
+          "serving": "1 each",
+          "calories": 390,
+          "fat_g": 4,
+          "carbs_g": 28,
+          "protein_g": 16
+        },
+        {
+          "name": "Steak Chalupa",
+          "serving": "1 each",
+          "calories": 380,
+          "fat_g": 4,
+          "carbs_g": 28,
+          "protein_g": 13
+        },
+        {
+          "name": "Cheesy Gordita Crunch",
+          "serving": "1 each",
+          "calories": 490,
+          "fat_g": 10,
+          "carbs_g": 39,
+          "protein_g": 20
+        },
+        {
+          "name": "Beefy 5-Layer Burrito",
+          "serving": "1",
+          "calories": 500,
+          "fat_g": null,
+          "carbs_g": null,
+          "protein_g": null
+        }
+      ]
+    },
+    {
+      "name": "Starbucks",
+      "building": "Student Union (SU)",
+      "menu": "Every Day",
+      "source": "https://dineoncampus.com/utdallasdining/whats-on-the-menu/starbucks/2026-11-16/every-day",
+      "macros_published": true,
+      "items": [
+        {
+          "name": "Spinach, Feta & Egg White Wrap",
+          "serving": "1 wrap",
+          "calories": 290,
+          "fat_g": 8,
+          "carbs_g": 34,
+          "protein_g": 20
+        },
+        {
+          "name": "Sausage, Cheddar & Egg Sandwich",
+          "serving": "1 sandwich",
+          "calories": 480,
+          "fat_g": 29,
+          "carbs_g": 34,
+          "protein_g": 18
+        },
+        {
+          "name": "Caramel Frappuccino (Grande)",
+          "serving": "16 oz",
+          "calories": 380,
+          "fat_g": 16,
+          "carbs_g": 54,
+          "protein_g": 4
+        },
+        {
+          "name": "Coffee Frappuccino (Grande)",
+          "serving": "16 oz",
+          "calories": 230,
+          "fat_g": 3,
+          "carbs_g": 46,
+          "protein_g": 3
+        },
+        {
+          "name": "Mocha Frappuccino (Grande)",
+          "serving": "16 oz",
+          "calories": 370,
+          "fat_g": 15,
+          "carbs_g": 54,
+          "protein_g": 5
+        },
+        {
+          "name": "Hot Chocolate (Grande)",
+          "serving": "16 oz",
+          "calories": 370,
+          "fat_g": 16,
+          "carbs_g": 50,
+          "protein_g": 14
+        },
+        {
+          "name": "Caffe Americano (Grande)",
+          "serving": "16 oz",
+          "calories": 15,
+          "fat_g": 0,
+          "carbs_g": 2,
+          "protein_g": 1
+        }
+      ]
+    }
+  ]
+}

@@ -3,13 +3,16 @@
 //     linkDevice(deviceId) -> [server pairs] ; loop [periodic sync] pushSteps(steps, heartRate, timestamp)   (FR-4)
 //   Rec center check-in: swipe student card -> recordVisit -> awardPoints -> "visit logged, points earned" ->
 //     "show visit history and points"                                                                       (FR-7)
+// TD-4: layout of spec/05-ui-prototype/5-activities.png — big dark-green action button, a three-number stats card,
+// "Completed" list with values on the right. "Upcoming classes" has no FR/UC and no data, so it is left out (TD-4 §3,
+// A-50); the "+ Log exercise" button syncs the smart device (A-50).
 import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { api, ApiError } from '../api';
-import { progress, shortTime } from '../logic';
+import { clockTime, progress, shortTime } from '../logic';
 import { FakeSmartDevice } from '../smartDevice';
 import type { DeviceLink } from '../types';
-import { Banner, Button, Card, colors, MaintenanceNotice, ProgressBar, Row, s, Stat, Toggle } from '../ui';
+import { Banner, Button, Card, colors, fmt, MaintenanceNotice, ProgressBar, Row, s, Stat, Toggle } from '../ui';
 import { useAsync } from '../useAsync';
 
 const SYNC_EVERY_MS = 60_000;
@@ -106,90 +109,126 @@ export default function ActivityScreen({ onChanged }: { onChanged: () => void })
 
   const sum = summaryQ.data;
   const hist = visitsQ.data;
+  const records = recordsQ.data ?? [];
+  const syncAll = () => links.forEach((l) => sync(l));
   return (
     <ScrollView>
       {msg ? <Banner kind={msg.kind}>{msg.text}</Banner> : null}
 
-      <Card title="Smart devices">
+      {/* Prototype "+ Log exercise": activity is logged by syncing the smart device (FR-4, SD-2), A-50 */}
+      <Button
+        big
+        label={links.length ? '+ Sync activity from device' : '+ Connect smart device'}
+        onPress={links.length ? syncAll : () => setAsking(true)}
+        busy={busy === 'sync' || busy === 'link'}
+        testID={links.length ? 'sync' : 'connect-device'}
+      />
+
+      {/* UC-2 «include» Grant Health Permissions (SD-2 "request health permissions -> grant permission") */}
+      {asking ? (
+        <View style={[s.card, { backgroundColor: colors.soft, marginTop: 8 }]}>
+          <Text style={[s.body, { fontWeight: '700' }]}>Allow CometFit to read health data?</Text>
+          <Text style={s.body}>CometFit would like to read your steps and heart rate from your device.</Text>
+          <Text style={s.muted}>(Simulated system prompt — browser demo has no HealthKit / Health Connect.)</Text>
+          <Row>
+            <View style={{ flex: 1 }}>
+              <Button label="Allow" onPress={() => grantAndLink(true)} testID="allow-health" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button kind="secondary" label="Don't allow" onPress={() => grantAndLink(false)} />
+            </View>
+          </Row>
+        </View>
+      ) : null}
+
+      <View style={[s.card, { flexDirection: 'row', marginTop: 8 }]} testID="activity-stats">
+        <Stat label="Steps today" value={sum ? fmt(sum.steps) : '–'} />
+        <Stat label="UREC visits (7 days)" value={hist ? String(hist.visitsThisWeek) : '–'} />
+        <Stat label="Points" value={hist ? fmt(hist.balance) : '–'} />
+      </View>
+      {sum ? (
+        <View style={{ marginTop: -4, marginBottom: 12 }}>
+          <ProgressBar value={progress(sum.steps, sum.stepGoal)} color={colors.primary} />
+          <Text style={s.small}>
+            {fmt(sum.steps)} of {fmt(sum.stepGoal)} steps{sum.latestHeartRate ? ` · latest heart rate ${sum.latestHeartRate} bpm` : ''}
+          </Text>
+        </View>
+      ) : null}
+
+      <Text style={a.section}>Completed today</Text>
+      <Card>
+        {records.length === 0 ? <Text style={s.muted}>No activity synced today.</Text> : null}
+        {records.slice(0, 8).map((r, i, all) => (
+          <View key={r.id} style={[a.row, i < all.length - 1 && a.line]}>
+            <View style={{ flex: 1 }}>
+              <Text style={a.title}>Device sync</Text>
+              <Text style={s.small}>{clockTime(r.timestamp)}{r.heartRate ? ` · ${r.heartRate} bpm` : ''}</Text>
+            </View>
+            <Text style={a.value}>+{fmt(r.steps)} steps</Text>
+          </View>
+        ))}
+      </Card>
+
+      <Text style={a.section}>UREC visits</Text>
+      <Card>
+        <Button kind="accent" label="Check in at UREC →" onPress={swipe} busy={busy === 'swipe'} testID="swipe" />
+        <Text style={[s.small, { marginBottom: 6 }]}>Card reader is simulated in this build. Swiping in at UREC earns points.</Text>
+        {(hist?.visits ?? []).length === 0 ? <Text style={s.muted}>No visits yet.</Text> : null}
+        {(hist?.visits ?? []).slice(0, 10).map((v, i, all) => (
+          <View key={v.visitId} style={[a.row, i < all.length - 1 && a.line]}>
+            <View style={{ flex: 1 }}>
+              <Text style={a.title}>UREC visit</Text>
+              <Text style={s.small}>{shortTime(v.timestamp)} · {v.readerId}</Text>
+            </View>
+          </View>
+        ))}
+      </Card>
+
+      <Text style={a.section}>Recent points</Text>
+      <Card>
+        {(hist?.transactions ?? []).length === 0 ? <Text style={s.muted}>No points yet.</Text> : null}
+        {(hist?.transactions ?? []).slice(0, 10).map((t, i, all) => (
+          <View key={t.id} style={[a.row, i < all.length - 1 && a.line]}>
+            <View style={{ flex: 1 }}>
+              <Text style={a.title}>{t.reason === 'VISIT' ? 'UREC visit' : 'Daily step goal'}</Text>
+              <Text style={s.small}>{shortTime(t.timestamp)}</Text>
+            </View>
+            <Text style={a.value}>+{t.amount} pts</Text>
+          </View>
+        ))}
+      </Card>
+
+      <Text style={a.section}>Smart devices</Text>
+      <Card>
         {links.length === 0 ? <Text style={s.muted}>No device connected.</Text> : null}
         {links.map((l) => (
-          <View key={l.linkId} style={s.listItem}>
-            <Text style={s.body}>
-              {l.deviceId} ({l.deviceType}, {l.platform})
-            </Text>
-            <Text style={s.muted}>Linked {shortTime(l.linkedAt)}</Text>
-            <Row>
-              <View style={{ flex: 1 }}>
-                <Button label="Sync now" onPress={() => sync(l)} busy={busy === 'sync'} testID="sync" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Button kind="secondary" label="Unlink" onPress={() => unlink(l)} />
-              </View>
-            </Row>
+          <View key={l.linkId} style={[a.row, a.line, { flexWrap: 'wrap' }]}>
+            <View style={{ flex: 1, minWidth: 150 }}>
+              <Text style={a.title}>{l.deviceId}</Text>
+              <Text style={s.small}>{l.deviceType}, {l.platform} · linked {shortTime(l.linkedAt)}</Text>
+            </View>
+            <View style={{ width: 96 }}>
+              <Button kind="secondary" label="Sync now" onPress={() => sync(l)} busy={busy === 'sync'} />
+            </View>
+            <View style={{ width: 90, marginLeft: 6 }}>
+              <Button kind="outlineDanger" label="Unlink" onPress={() => unlink(l)} />
+            </View>
           </View>
         ))}
         {links.length > 0 ? <Toggle label="Sync automatically every minute" value={autoSync} onChange={setAutoSync} /> : null}
-
-        {asking ? (
-          <View style={{ backgroundColor: colors.infoBg, padding: 12, borderRadius: 8, marginTop: 8 }}>
-            <Text style={[s.body, { fontWeight: '700' }]}>Allow CometFit to read health data?</Text>
-            <Text style={s.body}>CometFit would like to read your steps and heart rate from your device.</Text>
-            <Text style={s.muted}>(Simulated system prompt — browser demo has no HealthKit / Health Connect.)</Text>
-            <Row>
-              <View style={{ flex: 1 }}>
-                <Button label="Allow" onPress={() => grantAndLink(true)} testID="allow-health" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Button kind="secondary" label="Don't allow" onPress={() => grantAndLink(false)} />
-              </View>
-            </Row>
-          </View>
-        ) : (
-          <Button label="Connect smart device" kind={links.length ? 'secondary' : 'primary'} onPress={() => setAsking(true)} busy={busy === 'link'} testID="connect-device" />
-        )}
-        <Text style={s.muted}>Device is simulated in this build (stub of a watch / phone).</Text>
-      </Card>
-
-      <Card title="Today's movement">
-        {sum ? (
-          <>
-            <Text style={s.body}>
-              {sum.steps} / {sum.stepGoal} steps
-            </Text>
-            <ProgressBar value={progress(sum.steps, sum.stepGoal)} color={colors.good} />
-          </>
+        {!asking && links.length ? (
+          <Button kind="secondary" label="Connect another device" onPress={() => setAsking(true)} busy={busy === 'link'} />
         ) : null}
-        {(recordsQ.data ?? []).slice(0, 5).map((r) => (
-          <Text key={r.id} style={s.muted}>
-            {shortTime(r.timestamp)} · +{r.steps} steps{r.heartRate ? ` · ${r.heartRate} bpm` : ''}
-          </Text>
-        ))}
-      </Card>
-
-      <Card title="UREC visits & points">
-        {hist ? (
-          <Row>
-            <Stat label="Points" value={String(hist.balance)} />
-            <Stat label="Visits (7 days)" value={String(hist.visitsThisWeek)} />
-            <Stat label="All visits" value={String(hist.visits.length)} />
-          </Row>
-        ) : null}
-        <Button label="Simulate UREC card swipe" onPress={swipe} busy={busy === 'swipe'} testID="swipe" />
-        <Text style={s.muted}>Card reader is simulated in this build. Swiping in at UREC earns points.</Text>
-        <Text style={[s.body, { marginTop: 10, fontWeight: '600' }]}>Visit history</Text>
-        {(hist?.visits ?? []).length === 0 ? <Text style={s.muted}>No visits yet.</Text> : null}
-        {(hist?.visits ?? []).slice(0, 10).map((v) => (
-          <Text key={v.visitId} style={s.muted}>
-            {shortTime(v.timestamp)} · {v.readerId}
-          </Text>
-        ))}
-        <Text style={[s.body, { marginTop: 10, fontWeight: '600' }]}>Recent points</Text>
-        {(hist?.transactions ?? []).slice(0, 10).map((t) => (
-          <Text key={t.id} style={s.muted}>
-            {shortTime(t.timestamp)} · +{t.amount} ({t.reason === 'VISIT' ? 'UREC visit' : 'Daily step goal'})
-          </Text>
-        ))}
+        <Text style={s.small}>Device is simulated in this build (stub of a watch / phone).</Text>
       </Card>
     </ScrollView>
   );
 }
+
+const a = {
+  section: { fontSize: 20, fontWeight: '700' as const, color: colors.heading, marginTop: 10, marginBottom: 8 },
+  row: { flexDirection: 'row' as const, alignItems: 'center' as const, paddingVertical: 10 },
+  line: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  title: { fontSize: 15, fontWeight: '600' as const, color: colors.heading },
+  value: { fontSize: 14, fontWeight: '600' as const, color: colors.heading },
+};

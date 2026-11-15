@@ -61,9 +61,12 @@ export const api = {
   // Log In (Password + TOTP) — Fig 4.3, NFR Security
   register: (b: { username: string; password: string; email: string; displayName?: string }) =>
     post<T.Registration>('/api/auth/register', b),
-  // TD-1 (3): totpCode may be omitted on a remembered device (deviceToken); rememberDevice = "Remember this device for 30 days"
-  login: (b: { username: string; password: string; totpCode?: string; rememberDevice?: boolean; deviceToken?: string }) =>
-    post<T.LoginResponse>('/api/auth/login', b),
+  // TD-5 (1): step 1, username + password only (+ remembered device token, TD-1 (3)); no code
+  login: (b: { username: string; password: string; deviceToken?: string }) =>
+    post<T.LoginStep>('/api/auth/login', b),
+  // TD-5 (2) "Verify it's you" / (3) setup: 6-digit code + "Remember this device for 30 days"
+  verify: (b: { challengeId: string; totpCode: string; rememberDevice: boolean }) =>
+    post<T.LoginStep>('/api/auth/verify', b),
   logout: () => post<void>('/api/auth/logout'),
 
   // FR-3 own profile, goals (NFR Safety warnings)
@@ -77,9 +80,10 @@ export const api = {
   modules: () => get<T.ModuleState[]>('/api/modules'),
 
   // UC-1 / SD-1 — NutritionController
-  summary: () => get<T.DailySummary>('/api/nutrition/summary'),
+  summary: (date?: string) => get<T.DailySummary>(`/api/nutrition/summary${date ? `?date=${date}` : ''}`),
   submitMealPhoto: (form: FormData) => post<T.PhotoEstimate>('/api/nutrition/meals/photo', form),
   menuLocations: () => get<string[]>('/api/nutrition/menu/locations'),
+  menuLocationInfo: () => get<T.DiningLocation[]>('/api/nutrition/menu/location-info'), // TD-6 §2 (building)
   getMenu: (location: string) => get<T.DiningItem[]>(`/api/nutrition/menu?location=${encodeURIComponent(location)}`),
   saveMealEntry: (b: T.MealEntryRequest) => post<T.SaveResult<T.MealEntry>>('/api/nutrition/meals', b),
   meals: () => get<T.MealEntry[]>('/api/nutrition/meals'),

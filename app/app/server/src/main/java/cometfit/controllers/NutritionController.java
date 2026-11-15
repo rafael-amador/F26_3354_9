@@ -27,6 +27,7 @@ import cometfit.services.Clock;
 import cometfit.services.DailySummaryService;
 import cometfit.services.DailySummaryService.DailySummary;
 import cometfit.services.DiningMenuService;
+import cometfit.services.UtdDiningFeed;
 import cometfit.services.WaterLogService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
@@ -92,8 +93,9 @@ public class NutritionController extends BaseController {
     /** "show estimate for review" (SD-1): the unsaved MealEntry draft plus the individual recognised foods. */
     public record PhotoEstimate(MealEntryView draft, List<FoodEstimate> foodItems, String notice) {}
 
-    public record MealEntryView(Long entryId, String foodName, int calories, double proteinG, double carbsG,
-                                double fatG, MealSource source, Long diningItemId, Instant loggedAt) {
+    /** Macros are null when UTD Dining did not publish them (TD-6 §3); the client shows "not published". */
+    public record MealEntryView(Long entryId, String foodName, int calories, Double proteinG, Double carbsG,
+                                Double fatG, MealSource source, Long diningItemId, Instant loggedAt) {
         static MealEntryView of(MealEntry e) {
             return new MealEntryView(e.getEntryId(), e.getFoodName(), e.getCalories(), e.getProteinG(), e.getCarbsG(),
                     e.getFatG(), e.getSource(), e.getDiningItemId(), e.getLoggedAt());
@@ -137,6 +139,16 @@ public class NutritionController extends BaseController {
         return diningMenuService.locations();
     }
 
+    /**
+     * TD-6 §2: each location with its building ("show the building next to each location name"), menu label and
+     * source URL. Separate from /menu/locations so that endpoint keeps returning plain names (A-54).
+     */
+    @GetMapping("/menu/location-info")
+    public List<UtdDiningFeed.Location> menuLocationInfo(@RequestHeader("Authorization") String token) {
+        requireStudent(token, Permissions.NUTRITION);
+        return diningMenuService.locationDetails();
+    }
+
     /** getMenu(location) : List&lt;DiningItem&gt; — SD-1 "getMenu(location) -> fetchItems(location) -> menu list". FR-8. */
     @GetMapping("/menu")
     public List<DiningItem> getMenu(@RequestHeader("Authorization") String token, @RequestParam String location) {
@@ -157,6 +169,7 @@ public class NutritionController extends BaseController {
             if (r.diningItemId() == null) throw ApiException.badRequest("diningItemId is required for DINING_MENU");
             DiningItem d = diningItems.findById(r.diningItemId())
                     .orElseThrow(() -> ApiException.notFound("Dining item not found"));
+            // TD-6 §3: unpublished macros are copied as null, not 0, so the log still says "not published".
             e = new MealEntry(s.getUserId(), d.getName(), d.getCalories(), d.getProteinG(), d.getCarbsG(), d.getFatG(),
                     MealSource.DINING_MENU, d.getItemId(), Instant.now());
         } else {

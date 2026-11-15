@@ -21,14 +21,18 @@ import cometfit.security.Totp;
 class SecurityTest extends ApiTestSupport {
     @Autowired JdbcTemplate jdbc;
 
+    /** NFR Security, updated for TD-5: password first (401 if wrong), then a valid TOTP code completes the sign-in. */
     @Test
     void loginRequiresPasswordAndValidTotp() throws Exception {
         Account a = newStudent("sec");
         String good = Totp.codeAt(a.secret(), Instant.now());
         String bad = good.equals("000000") ? "111111" : "000000";
-        call(post("/api/auth/login"), null, Map.of("username", a.username(), "password", PASSWORD, "totpCode", bad), 401);
-        call(post("/api/auth/login"), null, Map.of("username", a.username(), "password", "wrong-pass", "totpCode", good), 401);
-        call(post("/api/auth/login"), null, Map.of("username", a.username(), "password", PASSWORD), 400);
+        call(post("/api/auth/login"), null, Map.of("username", a.username(), "password", "wrong-pass"), 401);
+        String challenge = call(post("/api/auth/login"), null, Map.of("username", a.username(), "password", PASSWORD), 200)
+                .get("challengeId").asText();
+        call(post("/api/auth/verify"), null, Map.of("challengeId", challenge, "totpCode", bad), 401);
+        assertThat(call(post("/api/auth/verify"), null, Map.of("challengeId", challenge, "totpCode", good), 200)
+                .get("token").asText()).hasSize(64);
         assertThat(login(a.username(), PASSWORD, a.secret())).hasSize(64);
     }
 
