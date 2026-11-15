@@ -55,11 +55,16 @@ public abstract class ApiTestSupport {
         return new Account(me.get("userId").asLong(), "dev", DemoDataSeeder.DEV_SECRET, token);
     }
 
+    /** TD-5: password step (returns a challenge, no token), then the 6-digit code on /verify. */
     protected String login(String username, String password, String secret) throws Exception {
-        String code = Totp.codeAt(secret, Instant.now());
-        JsonNode r = body(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+        JsonNode step1 = body(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(java.util.Map.of(
-                        "username", username, "password", password, "totpCode", code)))).andReturn(), 200);
+                        "username", username, "password", password)))).andReturn(), 200);
+        if (!step1.get("verificationRequired").asBoolean()) throw new AssertionError("expected a challenge: " + step1);
+        String code = Totp.codeAt(secret, Instant.now());
+        JsonNode r = body(mvc.perform(post("/api/auth/verify").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(java.util.Map.of(
+                        "challengeId", step1.get("challengeId").asText(), "totpCode", code)))).andReturn(), 200);
         return r.get("token").asText();
     }
 

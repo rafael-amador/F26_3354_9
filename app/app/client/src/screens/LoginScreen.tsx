@@ -1,69 +1,97 @@
 // Log In (Password + TOTP) — included by UC-1..UC-4 (D1 Fig 4.3); SD-4 "login (password + TOTP)".
 // NFR Security: username + password + TOTP MFA. Sign-up for students: ASSUMPTIONS A-3.
-// TD-1 (stage 2):
-//   (1) after sign-up: "Add to authenticator app" (opens the otpauth link with the account filled in) and
-//       "Copy setup key" as a backup;
-//   (2) QR code of the setup key only on a larger screen (laptop browser), where a phone can scan it;
-//   (3) "Remember this device for 30 days": on a remembered device, username + password only.
+// TD-5 (supersedes the TD-1 screen layout and A-39 in part):
+//   (1) "Sign in" asks only for username and password; the code is never asked before Sign in is pressed.
+//   (2) Remembered device (TD-1, 30 days, same user) -> signed in, no second step. Otherwise "Verify it's you" asks
+//       for the 6-digit code from Duo Mobile with the "Remember this device for 30 days" checkbox.
+//   (3) "Register" asks only for account details; then "Set up two-step verification" shows a QR code for Duo
+//       Mobile on every screen size, plus TD-1 "Add to authenticator app" and "Copy setup key"; the first code
+//       finishes setup and signs in.
+// TD-4: styled like spec/05-ui-prototype/1-sign-in.png (wordmark on top, centered title + subtitle, one wide button,
+// small grey footer). TD-4 §3: no "Sign in with Microsoft". Terms of Service / Privacy Policy links: A-46.
+// TD-7 §2: the CometFit logo (spec/07-logo, assets/logo.png from app/tools/make_icons.py) sits left of the
+// "CometFit" wordmark on all four steps (Sign in, Verify it's you, Register, Set up two-step verification),
+// where prototype 1-sign-in shows its logo. Size: A-60.
 import * as Clipboard from 'expo-clipboard';
-import React, { useEffect, useMemo, useState } from 'react';
-import { Linking, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Image, Linking, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
+
+// TD-7 §1, §3: transparent logo, aspect ratio kept (256 x 163 source -> 64 x 41 on screen, not stretched).
+const LOGO = require('../../assets/logo.png');
+const LOGO_W = 64;
+const LOGO_H = Math.round((LOGO_W * 163) / 256);
 import { api, ApiError } from '../api';
+import { challengeExpired, isSixDigitCode, submitCode, submitPassword, type AuthDeps } from '../authFlow';
 import { forgetRememberedDevice, getRememberedDevice, saveRememberedDevice } from '../deviceTrust';
-import { isLargeScreen, isStillRemembered, type RememberedDevice } from '../logic';
+import { qrCellSize } from '../logic';
 import { qrMatrix } from '../qr';
 import type { LoginResponse, Registration } from '../types';
-import { Banner, Button, Card, Field, Row, s, Toggle } from '../ui';
+import { Banner, Button, Card, Checkbox, colors, Field, Row, s } from '../ui';
+
+const deps: AuthDeps = {
+  login: api.login,
+  verify: api.verify,
+  getRememberedDevice,
+  saveRememberedDevice,
+  forgetRememberedDevice,
+};
+
+type Step =
+  | { name: 'signin' }
+  | { name: 'register' }
+  | { name: 'verify'; challengeId: string; expiresAt: string | null }
+  | { name: 'setup'; registration: Registration };
+
+function message(e: unknown): string {
+  return e instanceof ApiError || e instanceof Error ? e.message : 'Something went wrong';
+}
 
 export default function LoginScreen({ onLoggedIn }: { onLoggedIn: (r: LoginResponse) => void }) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [step, setStep] = useState<Step>({ name: 'signin' });
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [code, setCode] = useState('');
-  const [rememberDevice, setRememberDevice] = useState(false);
-  const [remembered, setRemembered] = useState<RememberedDevice | null>(null);
-  const [useCodeAnyway, setUseCodeAnyway] = useState(false);
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [code, setCode] = useState('');
+  const [rememberDevice, setRememberDevice] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [registered, setRegistered] = useState<Registration | null>(null);
 
-  // TD-1 (3): is this device remembered for the username being typed?
-  useEffect(() => {
-    let alive = true;
-    getRememberedDevice(username).then((d) => alive && setRemembered(isStillRemembered(d) ? d : null));
-    return () => {
-      alive = false;
-    };
-  }, [username]);
+  function go(next: Step) {
+    setError(null);
+    setCode('');
+    setRememberDevice(false);
+    setStep(next);
+  }
 
-  const skipCode = remembered !== null && !useCodeAnyway;
-
-  async function login() {
+  // TD-5 step 1
+  async function signIn() {
     setError(null);
     setBusy(true);
     try {
-      const r = await api.login({
-        username,
-        password,
-        totpCode: skipCode ? undefined : code.trim(),
-        rememberDevice: skipCode ? undefined : rememberDevice,
-        deviceToken: remembered?.token,
-      });
-      if (r.deviceToken && r.trustedUntil) {
-        await saveRememberedDevice(username, { token: r.deviceToken, trustedUntil: r.trustedUntil });
-      }
-      onLoggedIn(r);
+      const out = await submitPassword(deps, username, password);
+      if (out.kind === 'signedIn') onLoggedIn(out.session);
+      else go({ name: 'verify', challengeId: out.challengeId, expiresAt: out.expiresAt });
     } catch (e) {
-      if (skipCode && (e as ApiError).status === 401) {
-        // Remembered device no longer accepted (expired, password changed, ...): ask for the code again.
-        await forgetRememberedDevice(username);
-        setRemembered(null);
-        setError('Please enter the 6-digit code from your authenticator app.');
-      } else {
-        setError((e as ApiError).message);
-      }
+      setError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // TD-5 step 2 ("Verify it's you") and TD-5 (3) setup: same server call
+  async function verify(challengeId: string, expiresAt: string | null) {
+    setError(null);
+    if (challengeExpired(expiresAt)) {
+      setError('This sign-in has expired. Go back and sign in again.');
+      return;
+    }
+    setBusy(true);
+    try {
+      onLoggedIn(await submitCode(deps, username, challengeId, code, rememberDevice));
+    } catch (e) {
+      setError(message(e));
+      setCode('');
     } finally {
       setBusy(false);
     }
@@ -74,127 +102,158 @@ export default function LoginScreen({ onLoggedIn }: { onLoggedIn: (r: LoginRespo
     setBusy(true);
     try {
       const r = await api.register({ username, password, email, displayName: displayName || undefined });
-      setRegistered(r);
-      setMode('login');
-      setCode('');
+      setPassword('');
+      go({ name: 'setup', registration: r });
     } catch (e) {
-      setError((e as ApiError).message);
+      setError(message(e));
     } finally {
       setBusy(false);
     }
   }
 
+  const head = {
+    signin: { title: 'Sign in', sub: 'Students, use your CometFit username and password.' },
+    register: { title: 'Create a student account', sub: 'Enter your account details. You will set up two-step verification next.' },
+    verify: { title: "Verify it's you", sub: `Enter the 6-digit code from Duo Mobile for ${username.trim()}.` },
+    setup: { title: 'Set up two-step verification', sub: 'Add CometFit to Duo Mobile, then enter the first 6-digit code.' },
+  }[step.name];
+
   return (
-    <ScrollView contentContainerStyle={{ padding: 20, maxWidth: 480, width: '100%', alignSelf: 'center' }}>
-      <View style={{ alignItems: 'center', marginVertical: 24 }}>
-        <Text style={[s.h1, { fontSize: 30 }]}>CometFit</Text>
-        <Text style={s.muted}>Healthy habits for student life</Text>
+    <ScrollView contentContainerStyle={{ padding: 24, maxWidth: 440, width: '100%', alignSelf: 'center' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: step.name === 'signin' ? 56 : 24, marginBottom: step.name === 'signin' ? 72 : 28 }}>
+        <Image source={LOGO} style={{ width: LOGO_W, height: LOGO_H, marginRight: 10 }} resizeMode="contain"
+          accessibilityLabel="CometFit logo" testID="auth-logo" />
+        <Text style={{ fontSize: 34, fontWeight: '800', color: colors.heading }} accessibilityRole="header">
+          CometFit
+        </Text>
       </View>
 
-      {registered ? <AuthenticatorSetup registration={registered} /> : null}
+      <View style={{ alignItems: 'center', marginBottom: 18 }}>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }} testID="auth-title">{head.title}</Text>
+        <Text style={[s.body, { textAlign: 'center', marginTop: 6, lineHeight: 21 }]}>{head.sub}</Text>
+      </View>
 
-      <Card title={mode === 'login' ? 'Sign in' : 'Create a student account'}>
-        {error ? <Banner kind="error">{error}</Banner> : null}
-        <Field label="Username" value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} testID="username" />
-        <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry testID="password" />
-        {mode === 'login' ? (
-          skipCode ? (
-            <View style={{ marginBottom: 8 }}>
-              <Text style={s.muted} testID="remembered-note">
-                This device is remembered until {new Date(remembered!.trustedUntil).toLocaleDateString()}. No code needed.
-              </Text>
-              <Button kind="secondary" label="Use a code instead" onPress={() => setUseCodeAnyway(true)} />
-            </View>
-          ) : (
-            <>
-              <Field
-                label="6-digit code from your authenticator app"
-                value={code}
-                onChangeText={setCode}
-                keyboardType="number-pad"
-                maxLength={6}
-                testID="totp"
-              />
-              <Toggle label="Remember this device for 30 days" value={rememberDevice} onChange={setRememberDevice} />
-            </>
-          )
-        ) : (
-          <>
-            <Field label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-            <Field label="Display name (public)" value={displayName} onChangeText={setDisplayName} />
-            <Text style={s.muted}>Password: at least 8 characters.</Text>
-          </>
-        )}
-        {mode === 'login' ? (
-          <Button
-            label="Sign in"
-            onPress={login}
-            busy={busy}
-            disabled={!username || !password || (!skipCode && code.trim().length !== 6)}
-            testID="signin"
-          />
-        ) : (
-          <Button label="Create account" onPress={register} busy={busy} disabled={!username || !password || !email} />
-        )}
-        <Button
-          kind="secondary"
-          label={mode === 'login' ? 'New student? Create an account' : 'Back to sign in'}
-          onPress={() => {
-            setError(null);
-            setMode(mode === 'login' ? 'register' : 'login');
-          }}
-        />
-      </Card>
-      <Text style={[s.muted, { textAlign: 'center' }]}>
+      {error ? <Banner kind="error">{error}</Banner> : null}
+
+      {step.name === 'signin' ? (
+        <View>
+          <Field label="Username" value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} testID="username" />
+          <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry onSubmitEditing={signIn} testID="password" />
+          <Button big label="Sign in" onPress={signIn} busy={busy} disabled={!username.trim() || !password} testID="signin" />
+          <Button kind="secondary" label="New student? Create an account" onPress={() => go({ name: 'register' })} testID="to-register" />
+        </View>
+      ) : null}
+
+      {step.name === 'register' ? (
+        <View>
+          <Field label="Username" value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} testID="reg-username" />
+          <Field label="Password (at least 8 characters)" value={password} onChangeText={setPassword} secureTextEntry testID="reg-password" />
+          <Field label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" testID="reg-email" />
+          <Field label="Display name (public)" value={displayName} onChangeText={setDisplayName} testID="reg-name" />
+          <Button big label="Register" onPress={register} busy={busy} disabled={!username.trim() || !password || !email.trim()} testID="register" />
+          <Button kind="secondary" label="Back to sign in" onPress={() => go({ name: 'signin' })} />
+        </View>
+      ) : null}
+
+      {step.name === 'verify' ? (
+        <View>
+          <CodeInput value={code} onChange={setCode} onSubmit={() => verify(step.challengeId, step.expiresAt)} />
+          <Checkbox label="Remember this device for 30 days" value={rememberDevice} onChange={setRememberDevice} testID="remember-device" />
+          <Button big label="Verify" onPress={() => verify(step.challengeId, step.expiresAt)} busy={busy} disabled={!isSixDigitCode(code)} testID="verify" />
+          <Button kind="secondary" label="Back to sign in" onPress={() => { setPassword(''); go({ name: 'signin' }); }} />
+        </View>
+      ) : null}
+
+      {step.name === 'setup' ? (
+        <View>
+          <AuthenticatorSetup registration={step.registration} />
+          <Card title="2. Enter the first code">
+            <CodeInput value={code} onChange={setCode} onSubmit={() => verify(step.registration.setupChallengeId, step.registration.setupExpiresAt)} />
+            <Checkbox label="Remember this device for 30 days" value={rememberDevice} onChange={setRememberDevice} testID="remember-device" />
+            <Button
+              big
+              label="Finish setup"
+              onPress={() => verify(step.registration.setupChallengeId, step.registration.setupExpiresAt)}
+              busy={busy}
+              disabled={!isSixDigitCode(code)}
+              testID="finish-setup"
+            />
+          </Card>
+        </View>
+      ) : null}
+
+      <Text style={[s.small, { textAlign: 'center', marginTop: 18, lineHeight: 18 }]}>
         CometFit is a general wellness app and does not diagnose or treat any medical condition.
       </Text>
     </ScrollView>
   );
 }
 
-// ---- TD-1 (1) + (2): two-factor setup after sign-up ----------------------------------------------------------------
+/** Large centered 6-digit field (TD-5 (2)). */
+function CodeInput({ value, onChange, onSubmit }: { value: string; onChange: (v: string) => void; onSubmit: () => void }) {
+  return (
+    <View style={{ marginBottom: 6 }}>
+      <Text style={s.label}>6-digit code from Duo Mobile</Text>
+      <TextInput
+        value={value}
+        onChangeText={(t) => onChange(t.replace(/\D/g, '').slice(0, 6))}
+        onSubmitEditing={() => isSixDigitCode(value) && onSubmit()}
+        keyboardType="number-pad"
+        maxLength={6}
+        autoFocus
+        placeholder="000000"
+        placeholderTextColor={colors.border}
+        accessibilityLabel="6-digit code"
+        testID="totp"
+        style={[s.input, { fontSize: 28, letterSpacing: 8, textAlign: 'center', fontWeight: '700', color: colors.heading }]}
+      />
+    </View>
+  );
+}
+
+// ---- TD-5 (3) + TD-1 (1): two-step setup after Register -----------------------------------------------------------
 function AuthenticatorSetup({ registration }: { registration: Registration }) {
   const { width } = useWindowDimensions();
   const [note, setNote] = useState<{ kind: 'good' | 'warn'; text: string } | null>(null);
+  const rows = useMemo(() => qrMatrix(registration.otpauthUri), [registration.otpauthUri]);
+  // ScrollView max 440 wide, 24 padding each side, card padding 16 each side
+  const cell = qrCellSize(Math.min(width, 440) - 48 - 32, rows.length);
 
   async function openAuthenticator() {
     try {
       await Linking.openURL(registration.otpauthUri);
     } catch {
-      setNote({ kind: 'warn', text: 'No authenticator app opened. Use "Copy setup key" and paste it into your authenticator app.' });
+      setNote({ kind: 'warn', text: 'No authenticator app opened. Scan the QR code or use "Copy setup key".' });
     }
   }
   async function copyKey() {
     try {
       await Clipboard.setStringAsync(registration.totpSecret);
-      setNote({ kind: 'good', text: 'Setup key copied. Paste it into your authenticator app.' });
+      setNote({ kind: 'good', text: 'Setup key copied. Paste it into Duo Mobile or your authenticator app.' });
     } catch {
       setNote({ kind: 'warn', text: 'Could not copy. Select the key below and copy it by hand.' });
     }
   }
 
   return (
-    <Card title="Set up two-factor sign-in">
+    <Card title="1. Scan with Duo Mobile">
       <Text style={s.body}>
-        Account created for {registration.user.username}. Add CometFit to your authenticator app. You will be asked
-        for its 6-digit code when you sign in on a new device.
+        Account {registration.user.username} created. In Duo Mobile tap Add, then scan this QR code. Any authenticator
+        app also works.
       </Text>
+      <View style={{ alignItems: 'center', marginVertical: 10 }} testID="setup-qr">
+        <SetupQrCode rows={rows} cell={cell} />
+      </View>
       {note ? <Banner kind={note.kind}>{note.text}</Banner> : null}
       <Row>
-        <View style={{ flex: 1 }}>
-          <Button label="Add to authenticator app" onPress={openAuthenticator} testID="add-authenticator" />
+        <View style={{ flex: 1, minWidth: 150 }}>
+          <Button kind="secondary" label="Add to authenticator app" onPress={openAuthenticator} testID="add-authenticator" />
         </View>
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, minWidth: 150 }}>
           <Button kind="secondary" label="Copy setup key" onPress={copyKey} testID="copy-setup-key" />
         </View>
       </Row>
-      {isLargeScreen(width) ? (
-        <View style={{ alignItems: 'center', marginVertical: 8 }} testID="setup-qr">
-          <Text style={s.muted}>Or scan this QR code with your phone's authenticator app:</Text>
-          <SetupQrCode text={registration.otpauthUri} />
-        </View>
-      ) : null}
-      <Text selectable style={[s.muted, { fontFamily: 'monospace', marginTop: 4 }]}>
+      <Text selectable style={[s.muted, { fontFamily: 'monospace', marginTop: 6, textAlign: 'center' }]}>
         Setup key: {registration.totpSecret}
       </Text>
     </Card>
@@ -202,11 +261,10 @@ function AuthenticatorSetup({ registration }: { registration: Registration }) {
 }
 
 /** Draws the QR matrix with Views (works in the browser and on phones). */
-function SetupQrCode({ text, cell = 5 }: { text: string; cell?: number }) {
-  const rows = useMemo(() => qrMatrix(text), [text]);
+function SetupQrCode({ rows, cell }: { rows: boolean[][]; cell: number }) {
   const quiet = cell * 4;
   return (
-    <View style={{ backgroundColor: '#fff', padding: quiet, marginTop: 8 }} accessibilityLabel="Authenticator setup QR code">
+    <View style={{ backgroundColor: '#fff', padding: quiet }} accessibilityLabel="QR code to scan with Duo Mobile">
       {rows.map((row, y) => (
         <View key={y} style={{ flexDirection: 'row' }}>
           {row.map((dark, x) => (

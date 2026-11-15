@@ -20,12 +20,13 @@ public class MealEntry {
     private String foodName;
     @Column(nullable = false)
     private int calories;
-    @Column(name = "protein_g", nullable = false)
-    private double proteinG;
-    @Column(name = "carbs_g", nullable = false)
-    private double carbsG;
-    @Column(name = "fat_g", nullable = false)
-    private double fatG;
+    // TD-6 §3: null = "not published" for a UTD Dining item that only lists calories (V5__utd_dining_td6.sql).
+    @Column(name = "protein_g")
+    private Double proteinG;
+    @Column(name = "carbs_g")
+    private Double carbsG;
+    @Column(name = "fat_g")
+    private Double fatG;
     @Enumerated(EnumType.STRING) @Column(nullable = false)
     private MealSource source;
     @Column(name = "dining_item_id")
@@ -35,7 +36,7 @@ public class MealEntry {
 
     protected MealEntry() {}
 
-    public MealEntry(Long studentId, String foodName, int calories, double proteinG, double carbsG, double fatG,
+    public MealEntry(Long studentId, String foodName, int calories, Double proteinG, Double carbsG, Double fatG,
                      MealSource source, Long diningItemId, Instant loggedAt) {
         this.studentId = studentId;
         this.foodName = foodName;
@@ -52,9 +53,11 @@ public class MealEntry {
     public Long getStudentId() { return studentId; }
     public String getFoodName() { return foodName; }
     public int getCalories() { return calories; }
-    public double getProteinG() { return proteinG; }
-    public double getCarbsG() { return carbsG; }
-    public double getFatG() { return fatG; }
+    public Double getProteinG() { return proteinG; }
+    public Double getCarbsG() { return carbsG; }
+    public Double getFatG() { return fatG; }
+    /** TD-6 §3: true when at least one macro was not published by the source. */
+    public boolean hasUnpublishedMacros() { return proteinG == null || carbsG == null || fatG == null; }
     public MealSource getSource() { return source; }
     public Long getDiningItemId() { return diningItemId; }
     public Instant getLoggedAt() { return loggedAt; }

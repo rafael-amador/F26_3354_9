@@ -26,15 +26,20 @@ test('water amount parsing accepts positive decimals only', () => {
   assert.equal(parsePositiveAmount('abc'), null);
 });
 import { FakeSmartDevice, seeded } from '../src/smartDevice.ts';
-import { deviceKey, isLargeScreen, isStillRemembered } from '../src/logic.ts';
+import { deviceKey, isStillRemembered, qrCellSize } from '../src/logic.ts';
 import { qrMatrix } from '../src/qr.ts';
 
-// TD-1 (2): QR code only on a larger screen (laptop browser), not on the phone's own screen
-test('QR code is shown only on larger screens', () => {
-  assert.equal(isLargeScreen(390), false);   // phone
-  assert.equal(isLargeScreen(767), false);
-  assert.equal(isLargeScreen(768), true);
-  assert.equal(isLargeScreen(1440), true);   // laptop browser
+// TD-5 (3) "Show the QR code on every screen size" (replaces TD-1 (2) large-screen-only test): the QR plus its
+// quiet zone fits a small phone and a laptop, and modules never get smaller than 2 px.
+test('QR code fits every screen size', () => {
+  const n = qrMatrix('otpauth://totp/CometFit:alice?secret=COMETFITALICE234&issuer=CometFit').length;
+  for (const width of [320 - 80, 390 - 80, 440 - 80]) {   // phone widths minus screen + card padding
+    const cell = qrCellSize(width, n);
+    assert.ok(cell >= 2 && cell <= 6);
+    assert.ok(cell * (n + 8) <= width, `QR ${cell * (n + 8)} px fits ${width} px`);
+  }
+  assert.equal(qrCellSize(10_000, n), 6);
+  assert.equal(qrCellSize(10, n), 2);
 });
 
 // TD-1 (2): the QR encodes the otpauth setup link
@@ -60,6 +65,75 @@ test('remembered device is used only until trustedUntil, per username', () => {
   assert.equal(isStillRemembered(null, now), false);
   assert.equal(deviceKey(' Alice '), deviceKey('alice'));
   assert.notEqual(deviceKey('alice'), deviceKey('bob'));
+});
+
+// TD-4 Food & Water (prototype 3-food-water.png): Week / Month dates, merged "Today's log", "cal left"
+import { clockTime, lastNDates, leftOf, mergeTodayLog } from '../src/logic.ts';
+test('Week and Month cover the last 7 / 30 local days ending today, oldest first', () => {
+  const now = new Date(2026, 10, 15, 9, 0);   // Nov 15 2026 local
+  assert.deepEqual(lastNDates(7, now), ['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15']);
+  const month = lastNDates(30, now);
+  assert.equal(month.length, 30);
+  assert.equal(month[0], '2026-10-17');
+  assert.equal(month[29], '2026-11-15');
+});
+test("Today's log merges meals (F) and water (W), newest first", () => {
+  const rows = mergeTodayLog(
+    [{ entryId: 1, foodName: 'Lunch', calories: 650, proteinG: 1, carbsG: 2, fatG: 3, loggedAt: '2026-11-15T18:30:00Z', source: 'MANUAL' },
+     { entryId: 2, foodName: 'Breakfast', calories: 400, proteinG: 0, carbsG: 0, fatG: 0, loggedAt: '2026-11-15T14:00:00Z' }],
+    [{ entryId: 9, volumeMl: 750, loggedAt: '2026-11-15T17:45:00Z' }],
+  );
+  assert.deepEqual(rows.map((r) => r.title), ['Lunch', 'Water', 'Breakfast']);
+  assert.deepEqual(rows.map((r) => r.kind), ['food', 'water', 'food']);
+  assert.equal(rows[1].ml, 750);
+  assert.equal(rows[0].calories, 650);
+  assert.match(clockTime('2026-11-15T18:30:00Z'), /^\d{1,2}:30\s?(AM|PM)$/);
+  assert.equal(leftOf(1250, 2000), 750);
+  assert.equal(leftOf(2500, 2000), 0);
+});
+
+// TD-4 Social (prototype 4-social.png) + UC-3 consent: per-metric friends leaderboards
+import { rankBoard } from '../src/logic.ts';
+test('friends leaderboard: highest first, not-shared left out, ties share a rank', () => {
+  const rows = rankBoard([
+    { userId: 1, name: 'me', value: 1500, me: true },
+    { userId: 2, name: 'starry', value: 2500, me: false },
+    { userId: 3, name: 'nebula', value: 2100, me: false },
+    { userId: 4, name: 'private', value: null, me: false },
+  ]);
+  assert.deepEqual(rows.map((r) => [r.rank, r.name]), [[1, 'starry'], [2, 'nebula'], [3, 'me']]);
+  const tie = rankBoard([
+    { userId: 1, name: 'a', value: 5, me: false },
+    { userId: 2, name: 'me', value: 5, me: true },
+    { userId: 3, name: 'c', value: 1, me: false },
+  ]);
+  assert.deepEqual(tie.map((r) => [r.rank, r.name]), [[1, 'me'], [1, 'a'], [3, 'c']]);
+  assert.deepEqual(rankBoard([]), []);
+});
+
+// TD-4 Dashboard (prototype 2-dashboard.png) + FR-7 visit history: streak, week row, personal best (A-49)
+import { streakStats } from '../src/logic.ts';
+test('UREC streak: consecutive check-in days, one per day counts, week row Monday..Sunday', () => {
+  const at = (y: number, m: number, d: number, h = 10) => new Date(y, m - 1, d, h).toISOString();
+  const now = new Date(2026, 10, 13, 9);   // Friday Nov 13 2026, not yet checked in
+  const visits = [at(2026, 11, 9), at(2026, 11, 10), at(2026, 11, 11), at(2026, 11, 12), at(2026, 11, 12, 18),
+    at(2026, 11, 1), at(2026, 11, 2), at(2026, 11, 3), at(2026, 11, 4), at(2026, 11, 5), at(2026, 11, 6)];
+  const st = streakStats(visits, now);
+  assert.equal(st.current, 4);              // Mon..Thu, today not yet -> still alive
+  assert.equal(st.checkedInToday, false);
+  assert.equal(st.best, 6);                 // Nov 1..6
+  assert.equal(st.total, 11);               // every visit counts in "Total visits"
+  assert.equal(st.visitsThisWeek, 4);
+  assert.equal(st.nextMilestone, 5);
+  assert.deepEqual(st.week.map((w) => w.state), ['done', 'done', 'done', 'done', 'today', 'future', 'future']);
+  const after = streakStats([...visits, at(2026, 11, 13, 8)], now);
+  assert.equal(after.current, 5);
+  assert.equal(after.nextMilestone, 10);
+  assert.equal(after.week[4].state, 'done');
+  // a missed day breaks the streak
+  assert.equal(streakStats([at(2026, 11, 10), at(2026, 11, 11)], now).current, 0);
+  assert.equal(streakStats([at(2026, 11, 10), at(2026, 11, 11)], now).week[0].state, 'missed');
+  assert.equal(streakStats([], now).best, 0);
 });
 
 // UC-1 "View Daily Summary & Goals"

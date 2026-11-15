@@ -7,7 +7,6 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import cometfit.api.ApiException;
 import cometfit.security.AccountService;
 import cometfit.security.AuthService;
 import cometfit.security.Developer;
@@ -19,7 +18,7 @@ import jakarta.validation.constraints.NotBlank;
 /**
  * Log In (Password + TOTP) — included by every use case in Fig. 4.3 (UC-1..UC-4) and the
  * "login (password + TOTP)" message of SD-4. NFR Security (username + password + TOTP MFA).
- * Registration: A-3.
+ * Registration: A-3. TD-5: POST /login (password) then POST /verify (6-digit code) unless the device is remembered.
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -35,15 +34,32 @@ public class AuthController extends BaseController {
                                   @NotBlank String email, String displayName) {}
 
     /**
-     * totpCode may be left out only when deviceToken is a valid remembered device (TD-1 (3)).
-     * rememberDevice = the "Remember this device for 30 days" checkbox.
+     * TD-5 (1): step 1 is username + password only. deviceToken = a device remembered under TD-1 (3); no code field.
      */
-    public record LoginRequest(@NotBlank String username, @NotBlank String password, String totpCode,
-                               Boolean rememberDevice, String deviceToken) {}
+    public record LoginRequest(@NotBlank String username, @NotBlank String password, String deviceToken) {}
 
-    /** deviceToken / trustedUntil only when a device was just remembered; the client stores them (TD-1 (3)). */
-    public record LoginResponse(String token, Instant expiresAt, UserView user, String deviceToken,
-                                Instant trustedUntil, boolean rememberedDevice) {}
+    /**
+     * TD-5 (2): step 2 "Verify it's you" (or TD-5 (3) setup). rememberDevice = the
+     * "Remember this device for 30 days" checkbox, which is on the verify screen.
+     */
+    public record VerifyRequest(@NotBlank String challengeId, String totpCode, Boolean rememberDevice) {}
+
+    /**
+     * Either a signed-in session (token != null) or, when {@code verificationRequired}, a challenge for step 2 with no
+     * token. deviceToken / trustedUntil only when a device was just remembered; the client stores them (TD-1 (3)).
+     */
+    public record LoginResponse(boolean verificationRequired, String challengeId, Instant challengeExpiresAt,
+                                String token, Instant expiresAt, UserView user, String deviceToken,
+                                Instant trustedUntil, boolean rememberedDevice) {
+        static LoginResponse signedIn(AuthService.LoginResult res) {
+            Session s = res.session();
+            return new LoginResponse(false, null, null, s.getToken(), s.getExpiresAt(), UserView.of(s.getUser()),
+                    res.deviceToken(), res.trustedUntil(), res.rememberedDevice());
+        }
+        static LoginResponse challenge(AuthService.Challenge c) {
+            return new LoginResponse(true, c.challengeId(), c.expiresAt(), null, null, null, null, null, false);
+        }
+    }
 
     public record UserView(Long userId, String username, String displayName, String role, boolean isPublic,
                            List<String> permissions) {
@@ -54,29 +70,32 @@ public class AuthController extends BaseController {
     }
 
     /**
-     * Returns the TOTP secret once so the student can add it to an authenticator app. The client turns otpauthUri
-     * into the "Add to authenticator app" button and the large-screen QR code, and totpSecret into
-     * "Copy setup key" (TD-1 (1), (2)).
+     * Returns the TOTP secret once so the student can add it to Duo Mobile / any authenticator app. The client shows
+     * otpauthUri as a QR code on every screen size and as the "Add to authenticator app" button, and totpSecret as
+     * "Copy setup key" (TD-5 (3), TD-1 (1)). setupChallengeId lets the first 6-digit code finish setup via /verify
+     * and sign in (TD-5 (3)). No session is returned here.
      */
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, Object> register(@Valid @RequestBody RegisterRequest r) {
         AccountService.Registration reg = accounts.registerStudent(r.username(), r.password(), r.email(), r.displayName());
-        return Map.of("user", UserView.of(reg.user()), "totpSecret", reg.totpSecret(), "otpauthUri", reg.otpauthUri());
+        AuthService.Challenge setup = authService.startSetup(reg.user().getUserId());
+        return Map.of("user", UserView.of(reg.user()), "totpSecret", reg.totpSecret(), "otpauthUri", reg.otpauthUri(),
+                "setupChallengeId", setup.challengeId(), "setupExpiresAt", setup.expiresAt());
     }
 
+    /** TD-5 (1), (2): password step. Remembered device -> session; otherwise a challenge and no session. */
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest r) {
-        boolean noCode = r.totpCode() == null || r.totpCode().isBlank();
-        boolean noDevice = r.deviceToken() == null || r.deviceToken().isBlank();
-        if (noCode && noDevice) {   // checked before the credentials, so it reveals nothing about the password
-            throw ApiException.badRequest("Enter the 6-digit code from your authenticator app");
-        }
-        AuthService.LoginResult res = authService.login(r.username(), r.password(), r.totpCode(),
-                Boolean.TRUE.equals(r.rememberDevice()), r.deviceToken());
-        Session s = res.session();
-        return new LoginResponse(s.getToken(), s.getExpiresAt(), UserView.of(s.getUser()), res.deviceToken(),
-                res.trustedUntil(), res.rememberedDevice());
+        AuthService.PasswordStep step = authService.authenticate(r.username(), r.password(), r.deviceToken());
+        return step.result() != null ? LoginResponse.signedIn(step.result()) : LoginResponse.challenge(step.challenge());
+    }
+
+    /** TD-5 (2) "Verify it's you" / TD-5 (3) setup: the 6-digit code completes the challenge and creates the session. */
+    @PostMapping("/verify")
+    public LoginResponse verify(@Valid @RequestBody VerifyRequest r) {
+        return LoginResponse.signedIn(authService.verifyChallenge(r.challengeId(), r.totpCode(),
+                Boolean.TRUE.equals(r.rememberDevice())));
     }
 
     @PostMapping("/logout")

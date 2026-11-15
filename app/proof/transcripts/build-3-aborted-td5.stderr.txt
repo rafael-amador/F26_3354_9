@@ -1,0 +1,1 @@
+Ignoring 27 permissions.allow entries from .claude/settings.json: this workspace has not been trusted. Run Claude Code interactively here once and accept the trust dialog, or set projects["C:/CometFit-cleanroom/build"].hasTrustDialogAccepted: true in C:\Users\rafam\.claude.json.

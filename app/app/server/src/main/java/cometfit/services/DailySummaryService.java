@@ -39,7 +39,8 @@ public class DailySummaryService {
 
     public record DailySummary(LocalDate date, int calories, int calorieGoal, double proteinG, double carbsG,
                                double fatG, int waterMl, double waterLiters, int waterGoalMl, int bottleSizeMl, int steps, int stepGoal,
-                               Integer latestHeartRate, int mealCount, int waterEntryCount, List<String> messages) {}
+                               Integer latestHeartRate, int mealCount, int waterEntryCount, List<String> messages,
+                               int mealsWithUnpublishedMacros) {}
 
     @Transactional(readOnly = true)
     public DailySummary getDailySummary(Student s, LocalDate date) {
@@ -49,9 +50,12 @@ public class DailySummaryService {
         List<ActivityRecord> a = activity.findByStudentIdAndTimestampBetweenOrderByTimestampDesc(s.getUserId(), from, to);
 
         int cal = m.stream().mapToInt(MealEntry::getCalories).sum();
-        double p = round1(m.stream().mapToDouble(MealEntry::getProteinG).sum());
-        double c = round1(m.stream().mapToDouble(MealEntry::getCarbsG).sum());
-        double f = round1(m.stream().mapToDouble(MealEntry::getFatG).sum());
+        // TD-6 §3: a macro the source did not publish (null) counts as 0 g in the totals (A-55);
+        // mealsWithUnpublishedMacros lets the client say so.
+        double p = round1(m.stream().mapToDouble(e -> nz(e.getProteinG())).sum());
+        double c = round1(m.stream().mapToDouble(e -> nz(e.getCarbsG())).sum());
+        double f = round1(m.stream().mapToDouble(e -> nz(e.getFatG())).sum());
+        int unpublished = (int) m.stream().filter(MealEntry::hasUnpublishedMacros).count();
         // Water is stored in liters (team repo code LogWater.java); goals stay in ml (Student.waterGoalMl, §5.2).
         double liters = Math.round(w.stream().mapToDouble(WaterEntry::getAmount).sum() * 100) / 100.0;
         int ml = (int) Math.round(liters * 1000);
@@ -71,8 +75,9 @@ public class DailySummaryService {
         msgs.addAll(Student.safetyWarnings(s.getCalorieGoal(), s.getWaterGoalMl(), s.getStepGoal()));
 
         return new DailySummary(date, cal, s.getCalorieGoal(), p, c, f, ml, liters, s.getWaterGoalMl(), s.getBottleSizeMl(),
-                steps, s.getStepGoal(), hr, m.size(), w.size(), msgs);
+                steps, s.getStepGoal(), hr, m.size(), w.size(), msgs, unpublished);
     }
 
     private static double round1(double v) { return Math.round(v * 10) / 10.0; }
+    private static double nz(Double v) { return v == null ? 0 : v; }
 }

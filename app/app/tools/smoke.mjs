@@ -20,8 +20,14 @@ function check(name, cond, extra = '') {
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${extra ? ' — ' + extra : ''}`);
   if (!cond) failures++;
 }
+// TD-5: step 1 password (no session, a challenge), step 2 the 6-digit code on /verify.
+async function verify(challengeId, secret, rememberDevice = false) {
+  return call('POST', '/api/auth/verify', null, { challengeId, totpCode: totp(secret), rememberDevice });
+}
 async function login(username, secret) {
-  const r = await call('POST', '/api/auth/login', null, { username, password: PASSWORD, totpCode: totp(secret) });
+  const step1 = await call('POST', '/api/auth/login', null, { username, password: PASSWORD });
+  check(`TD-5 ${username} password step gives no session`, step1.status === 200 && step1.data?.verificationRequired === true && !step1.data?.token, `HTTP ${step1.status}`);
+  const r = await verify(step1.data?.challengeId, secret);
   check(`login ${username} (password + TOTP)`, r.status === 200, `HTTP ${r.status}`);
   return r.data?.token;
 }
@@ -36,10 +42,11 @@ const dev = await login('dev', 'COMETFITDEVADMIN');
 
 // TD-1 (3): "Remember this device for 30 days" -> next sign-in with username + password only
 {
-  const first = await call('POST', '/api/auth/login', null, { username: 'bob', password: PASSWORD, totpCode: totp('COMETFITBOBBY567'), rememberDevice: true });
+  const step1 = await call('POST', '/api/auth/login', null, { username: 'bob', password: PASSWORD });
+  const first = await verify(step1.data?.challengeId, 'COMETFITBOBBY567', true);
   check('TD-1 remember this device', first.status === 200 && !!first.data?.deviceToken, `trusted until ${first.data?.trustedUntil}`);
   const again = await call('POST', '/api/auth/login', null, { username: 'bob', password: PASSWORD, deviceToken: first.data?.deviceToken });
-  check('TD-1 remembered device signs in without a code', again.status === 200 && again.data?.rememberedDevice === true, `HTTP ${again.status}`);
+  check('TD-5 remembered device skips step 2', again.status === 200 && again.data?.verificationRequired === false && again.data?.rememberedDevice === true, `HTTP ${again.status}`);
 }
 
 // UC-1
@@ -52,11 +59,16 @@ r = await call('POST', '/api/nutrition/water', alice, { amount: 0.3, isLiter: fa
 check('UC-1 FR-6 water in gallons stored as liters', r.status === 201 && r.data?.saved?.amount === 1.13, r.data?.message);
 r = await call('POST', '/api/nutrition/water', alice, { amount: -0.3, isLiter: true });
 check('UC-1 FR-6 negative water rejected', r.status === 400 && r.data?.message === 'Negative amount.', r.data?.message);
-r = await call('GET', '/api/nutrition/menu?location=Dining%20Hall', alice);
-check('UC-1 FR-8 dining menu with macros', r.status === 200 && r.data.length > 0, `${r.data?.length} items`);
+// TD-6: real UTD Dining locations (spec/06-utd-dining); Dining Hall West publishes calories only.
+r = await call('GET', '/api/nutrition/menu/location-info', alice);
+check('TD-6 seven UTD Dining locations with buildings', r.status === 200 && r.data.length === 7 && r.data.every((l) => l.building),
+  r.data?.map?.((l) => l.name).join(', '));
+r = await call('GET', '/api/nutrition/menu?location=Dining%20Hall%20West', alice);
+check('UC-1 FR-8 dining menu (TD-6 Dining Hall West, macros not published)',
+  r.status === 200 && r.data.length === 11 && r.data.every((i) => i.proteinG === null), `${r.data?.length} items`);
 if (r.status === 200) {
   r = await call('POST', '/api/nutrition/meals', alice, { source: 'DINING_MENU', diningItemId: r.data[0].itemId });
-  check('UC-1 dining item added to meal log', r.status === 201, r.data?.saved?.foodName);
+  check('UC-1 calories-only dining item added to meal log', r.status === 201 && r.data?.saved?.proteinG === null, r.data?.saved?.foodName);
 }
 
 // UC-2

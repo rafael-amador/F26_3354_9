@@ -26,6 +26,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
+    "export:web": "expo export --platform web",
     "test": "node --test --experimental-strip-types --no-warnings \"__tests__/*.test.ts\""
   },
   "private": true

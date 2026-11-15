@@ -2,14 +2,14 @@
 
 CometFit (SE 3354 Team 9) is a student health-tracking app: meals and water (UC-1), activity and UREC visits (UC-2),
 friends' progress (UC-3), and developer monitoring and control (UC-4). It was built only from the team's Proposal,
-Deliverable 1, the Deliverable 2 draft, the team's water-logging unit code, and team decisions TD-1..TD-3 (all in `../spec/`). `../TRACEABILITY.md` maps every requirement to code and tests. `../ASSUMPTIONS.md` lists every gap
+Deliverable 1, the Deliverable 2 draft, the team's water-logging unit code, team decisions TD-1..TD-5 and the team's Figma prototype screens (all in `../spec/`). `../TRACEABILITY.md` maps every requirement to code and tests. `../ASSUMPTIONS.md` lists every gap
 that had to be filled.
 
 ```
 app/
 ├── server/            Spring Boot REST server: API gateway, auth gateway, Nutrition / Activity / Social / Admin services
 ├── client/            Expo (React Native) mobile app — also runs in a web browser for the demo
-├── tools/             totp.mjs (prints sign-in codes), smoke.mjs (end-to-end HTTP check)
+├── tools/             totp.mjs (prints sign-in codes), smoke.mjs (end-to-end HTTP check), demo-check.mjs (read-only)
 └── docker-compose.yml MySQL 8.4 database + the server
 ```
 
@@ -106,7 +106,8 @@ cd app/server
 mvn spring-boot:run -Dspring-boot.run.profiles=h2
 ```
 
-Flyway creates the schema on first start (`V1` schema, `V2` water log in liters, `V3` remembered devices). The server
+Flyway creates the schema on first start (`V1` schema, `V2` water log in liters, `V3` remembered devices, `V4` sign-in
+challenges for TD-5, `V5` UTD Dining building / serving size and nullable macros for TD-6). The server
 is ready when <http://localhost:8080/actuator/health> shows `{"status":"UP"}`.
 
 **Start the demo over with clean data** (removes everything, including test leftovers, then re-seeds the demo accounts):
@@ -137,58 +138,89 @@ open the app in Expo Go. Set `EXPO_PUBLIC_API_URL` to your laptop's LAN address,
 |---|---|---|---|
 | `alice` | `CometFit123!` | `COMETFITALICE234` | Student |
 | `bob` | `CometFit123!` | `COMETFITBOBBY567` | Student |
+| `starryskies23` (Sky) | `CometFit123!` | `COMETFITSTARRY23` | Student (TD-8): water leader |
+| `nebulanomad` (Nova) | `CometFit123!` | `COMETFITNEBULA45` | Student (TD-8): logs the most calories |
+| `lunarlifter` (Luna) | `CometFit123!` | `COMETFITLUNAR567` | Student (TD-8) |
+| `orbitrunner` (Theo) | `CometFit123!` | `COMETFITORBIT234` | Student (TD-8): UREC regular, most points |
+| `cosmocomet` (Cass) | `CometFit123!` | `COMETFITCOSMO345` | Student (TD-8): not a friend yet; pending friend request to alice |
 | `dev` | `CometFit123!` | `COMETFITDEVADMIN` | Developer (admin dashboard) |
 
-The first sign-in on a device needs the current 6-digit code. Get it from any authenticator app (add the secret),
-or from:
+Sign-in has two steps (team decision TD-5):
 
-```bash
-node app/tools/totp.mjs COMETFITALICE234
-```
+1. **Sign in** — enter the username and password and press *Sign in*. No code is asked here.
+2. **Verify it's you** — shown only when this browser/phone is not remembered. Enter the current 6-digit code from
+   Duo Mobile (or any authenticator app with the secret above added), or print it with:
 
-Tick **Remember this device for 30 days** and later sign-ins on that browser/phone only need username and password
-(TD-1). The code is needed again on a new device, after 30 days, or after a password change.
+   ```bash
+   node app/tools/totp.mjs COMETFITALICE234
+   ```
 
-New students can register from the sign-in screen. The app then shows **Add to authenticator app** (opens the
-authenticator with the account filled in), **Copy setup key**, and a QR code when the window is wide (a laptop),
-so a phone can scan it.
+   Tick **Remember this device for 30 days** to skip step 2 next time on this browser/phone (TD-1). The code is
+   needed again on a new device, after 30 days, after a password change, or after *Account → Two-step verification →
+   Forget this device*. The sign-in step expires after 5 minutes; if it does, press *Back to sign in*.
 
-The demo students `alice` and `bob` are already friends, share all their stats, and have a week of meals, water,
-steps, UREC visits and points (TD-2). Accounts you register yourself share nothing until you turn sharing on.
+**Register** (from *New student? Create an account*) asks only for the account details. The next screen, **Set up
+two-step verification**, shows a QR code to scan with Duo Mobile (on every screen size), plus **Add to authenticator
+app** and **Copy setup key**. Enter the first 6-digit code and press *Finish setup* to sign in.
+
+The six demo students `alice`, `bob`, `starryskies23`, `nebulanomad`, `lunarlifter` and `orbitrunner` are all
+friends with each other, share all their stats, and have a week of meals, water, steps, UREC visits and points,
+today included (TD-2, TD-8); their meals are real UTD Dining items (TD-6). On alice's Social screen every board lists
+six people and alice is neither first nor last on any of them. `cosmocomet` has sent alice a friend request that is
+still pending (TD-8). "Today" is the day the demo data was reset; on a later day, reset again. Accounts you register
+yourself share nothing until you turn sharing on.
 
 ## 5. Run the tests
 
 ```bash
-cd app/server && mvn test        # 55 API/unit tests on H2 (MySQL mode): Uc1..Uc4, WaterLogTest (team TC-1..TC-3),
-                                 # RememberDeviceTest (TD-1), DemoDataTest (TD-2), security
-cd app/client && npm test        # 12 client unit tests (Node test runner)
+cd app/server && mvn test        # 76 API/unit tests on H2 (MySQL mode): Uc1..Uc4, WaterLogTest (team TC-1..TC-3),
+                                 # RememberDeviceTest (TD-1), DemoDataTest (TD-2, TD-6), TwoStepSignInTest (TD-5),
+                                 # Td6UtdDiningTest + StubUtdDiningFeedTest (TD-6), Td8DemoFriendsTest (TD-8), security
+cd app/client && npm test        # 32 client unit tests (Node test runner), incl. authFlow (TD-5), td6Dining (TD-6)
 cd app/client && npm run typecheck
+cd app/client && npx expo export --platform web   # production web build in app/client/dist (= npm run export:web)
 
-# End-to-end over real HTTP against a running server (uses the demo accounts):
+# End-to-end over real HTTP against a running server (uses the demo accounts; it logs meals/water for alice,
+# so reset the demo data afterwards if you want it clean):
 node app/tools/smoke.mjs http://localhost:8080
+# Read-only: demo accounts sign in, TD-6 dining data, demo meals, TD-8 six-person boards and pending request
+# (writes no demo data):
+node app/tools/demo-check.mjs http://localhost:8080
 ```
 
 ## 6. Demo script (about 5 minutes)
 
 Start from clean demo data (`docker compose down -v`, then `docker compose up --build`).
 
-0. **Sign-in (TD-1)** — Sign in as `alice` with the code and tick *Remember this device for 30 days*. Sign out and
-   sign in again: only username and password are needed. To show sign-up, register a new student and point out
-   *Add to authenticator app*, *Copy setup key* and the QR code (wide window only).
-1. **UC-1** — On **Log**, tap *+1 refill*. Then enter `0.3`, choose *gal* and tap *Add 1.13 L*: the app answers
-   "Added 1.13L to Alice" (water is stored in liters). Entering a negative amount is not accepted. Log a meal manually. Switch to *Dining menu* →
-   *Dining Hall* → *Add* an item. Switch to *Photo (AI)* and pick any image, edit the estimate, then *Confirm & save*.
-   **Today** shows calories, macros, water progress and the low-water message.
-2. **Safety** — in **Profile → Daily goals**, enter 800 kcal or 6000 ml and watch the warnings appear.
-3. **UC-2** — **Activity** → *Connect smart device* → *Allow* (simulated health prompt) → *Sync now*. Then
-   *Simulate UREC card swipe*, which earns +10 points and appears in the visit history.
-4. **UC-3** — **Friends**: `bob` is already a friend (TD-2). Open bob's *Stats* (calories, water, steps, visits,
-   points) and the leaderboard with both students. Turn one of alice's sharing switches off under *What my friends can
-   see*, then in a second (private) browser window sign in as `bob` and see that stat change to "Not shared". To show
-   friend requests, register a new student and send `alice` a request.
-5. **UC-4** — Sign in as `dev`. The dashboard shows uptime % and per-service status. Click *Simulate outage* on a
-   service to see a downtime alert and an incident, then end it. *Disable* "Friends & Leaderboard" and switch to
-   bob's window: the Friends tab shows the maintenance notice while the other tabs keep working. *Re-enable* it.
+The five tabs follow the team's Figma prototype (TD-4): **Dashboard, Food & Water, Activities, Social, Account**.
+
+0. **Sign-in (TD-5, TD-1)** — Sign in as `alice` with username and password; *Verify it's you* asks for the code.
+   Tick *Remember this device for 30 days* and *Verify*. Log out (Account) and sign in again: no second step. To
+   show sign-up, register a new student: *Set up two-step verification* shows the QR code for Duo Mobile, *Add to
+   authenticator app* and *Copy setup key*; enter the first code to finish.
+1. **UC-1** — **Dashboard** shows the UREC streak and a *Today* card (calories, water, steps, low-water message). On
+   **Food & Water**, tap *+ 500 ml* (one bottle refill). Tap *Other amount (L / gal)*, enter `0.3`, choose *gal* and
+   tap *Add 1.13 L*: the app answers "Added 1.13L to Alice" (water is stored in liters). A negative amount is not
+   accepted. Tap *+ Log food*: log a meal manually, then *Dining menu*: the 7 UTD Dining locations with their
+   buildings (TD-6). Open *Dining Hall West (Andromeda Hall)* — calories only, macros "not published" — and *Add*
+   *Italian Nachos*; the macro totals note that it counts as 0 g. Open *Chick-fil-A* to show an item with published
+   macros. Then *Photo (AI)* → pick any image, edit the estimate, *Confirm & save*. *Today's log* lists every entry;
+   *Week* / *Month* show averages per day. alice's and bob's earlier days are real UTD Dining items (TD-6 §5).
+2. **Safety** — in **Account → Daily goals & units**, enter 800 kcal or 6000 ml and watch the warnings appear.
+3. **UC-2** — **Activities** → *+ Connect smart device* → *Allow* (simulated health prompt) → *+ Sync activity from
+   device*. Then *Check in at UREC* (here or on the Dashboard): +10 points, the visit appears in the history and the
+   Dashboard streak updates.
+4. **UC-3** — **Social**: the friends leaderboards (water, calories, UREC visits, points) list six people: alice and
+   her five demo friends (TD-2, TD-8), with a different leader on each board (starryskies23 water, nebulanomad
+   calories, orbitrunner UREC visits and points). Water and points move as alice logs things in steps 1-3. Open a
+   friend's *Stats*. In **Account → Privacy & data** turn one of alice's sharing switches off, then in a second
+   (private) browser window sign in as `bob` and see alice drop off that board and the stat show "Not shared".
+   *Friend requests* already shows the pending request from `cosmocomet` (TD-8): *Accept* it and Cass joins the
+   boards (seven people).
+5. **UC-4** — Sign in as `dev`. The developer dashboard shows uptime % and per-component status. Click *Simulate
+   outage* on a component to see a downtime alert and an incident, then end it. *Disable* "Friends & Leaderboard" and
+   switch to bob's window: the Social tab shows the maintenance notice while the other tabs keep working.
+   *Re-enable* it.
 
 Not built on purpose: the Proposal's water refill map (team decision TD-3, `../ASSUMPTIONS.md` A-41).
 
@@ -197,10 +229,10 @@ Not built on purpose: the Proposal's water refill map (team decision TD-3, `../A
 | External actor in the spec | Interface | Stub implementation |
 |---|---|---|
 | AI Food Recognition Service (UC-1) | `services/AIFoodService` | `stubs/FakeAIFoodService` — deterministic estimate from the image hash |
-| UTD Dining menu data (UC-1, FR-8) | `services/UtdDiningFeed` | `stubs/StubUtdDiningFeed` — fixed sample menu for "Dining Hall" and "Campus Store" |
+| UTD Dining menu data (UC-1, FR-8) | `services/UtdDiningFeed` | `stubs/StubUtdDiningFeed` — TD-6: the 7 UTD Dining locations / 54 items of `spec/06-utd-dining` (Monday 2026-11-16 menus, classpath copy `utd-dining/…json`), same menu every day, no live calls |
 | Smart Device pairing (UC-2) | `services/SmartDeviceGateway` | `stubs/FakeSmartDeviceGateway` — always pairs, except device ids starting with `FAIL` |
 | Smart Device readings + health permission (UC-2) | client `src/smartDevice.ts` `SmartDeviceAdapter` | `FakeSmartDevice` — simulated steps / heart rate |
-| UREC Card Reader (UC-2) | `POST /api/activity/visits` with the integration key | `stubs/FakeUrecCardReader` — the "Simulate UREC card swipe" button |
+| UREC Card Reader (UC-2) | `POST /api/activity/visits` with the integration key | `stubs/FakeUrecCardReader` — the "Check in at UREC" buttons (Dashboard, Activities) |
 | Monitoring Service (UC-4) | `POST /api/admin/health-check` with the integration key | `stubs/MonitoringAgentStub` — timer inside the server |
 | Downtime alert channel (UC-4) | `services/AlertNotifier` | `stubs/LoggingAlertNotifier` — logs the alert and shows it on the dashboard |
 | A real outage (demo only) | — | `stubs/OutageSimulator` — the "Simulate outage" button |
@@ -211,17 +243,21 @@ All endpoints except register, login and health need `Authorization: Bearer <tok
 
 | Area | Endpoints |
 |---|---|
-| Auth | `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` |
+| Auth | `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/verify`, `POST /api/auth/logout`, `GET /api/auth/me` |
 | Profile (FR-3) | `GET/PUT /api/profile`, `PUT /api/profile/password`, `PUT /api/profile/goals` |
-| Nutrition (UC-1) | `POST /api/nutrition/meals/photo`, `GET /api/nutrition/menu/locations`, `GET /api/nutrition/menu?location=`, `POST/GET /api/nutrition/meals`, `POST/GET /api/nutrition/water`, `GET /api/nutrition/summary` |
+| Nutrition (UC-1) | `POST /api/nutrition/meals/photo`, `GET /api/nutrition/menu/locations`, `GET /api/nutrition/menu/location-info` (TD-6: building, menu, source), `GET /api/nutrition/menu?location=`, `POST/GET /api/nutrition/meals`, `POST/GET /api/nutrition/water`, `GET /api/nutrition/summary` |
 | Activity (UC-2) | `POST/GET /api/activity/devices`, `DELETE /api/activity/devices/{id}`, `POST /api/activity/steps`, `GET /api/activity/records`, `POST /api/activity/visits` (reader), `GET /api/activity/visits`, `POST /api/activity/stub-reader/swipe` |
 | Social (UC-3) | `GET /api/social/users/search?q=`, `GET /api/social/users/{id}`, `POST/GET /api/social/requests`, `POST /api/social/requests/{id}/accept\|decline`, `GET /api/social/friends`, `DELETE /api/social/friends/{id}`, `GET/PUT /api/social/consent`, `GET /api/social/friends/{id}/stats`, `GET /api/social/leaderboard` |
 | Modules (FR-5) | `GET /api/modules`, `GET /api/modules/{id}` |
 | Admin (UC-4) | `GET /api/admin/access`, `GET /api/admin/uptime?hours=`, `POST /api/admin/uptime/check-now`, `GET /api/admin/alerts`, `GET /api/admin/modules`, `POST /api/admin/modules/{id}/disable\|enable`, `POST /api/admin/health-check` (monitor), `POST /api/admin/stub/outage` |
 
-Request bodies changed in stage 2: `POST /api/auth/login` takes `username`, `password`, and `totpCode` and/or
-`deviceToken`, plus optional `rememberDevice` (TD-1). The response includes `deviceToken` / `trustedUntil` when a device
-was just remembered. `POST /api/nutrition/water` takes `{"amount": 0.3, "isLiter": false}` (liters or gallons, team
+Sign-in (stage 3, TD-5): `POST /api/auth/login` takes `username`, `password` and optional `deviceToken` (a remembered
+device). It returns a session (`token`, `user`, `rememberedDevice: true`) only for a remembered device; otherwise
+`verificationRequired: true` with a single-use `challengeId` (5 minutes) and **no** token. `POST /api/auth/verify`
+takes `challengeId`, `totpCode` and optional `rememberDevice` and returns the session, plus `deviceToken` /
+`trustedUntil` when the device was just remembered. `POST /api/auth/register` returns `totpSecret`, `otpauthUri` and a
+`setupChallengeId` (15 minutes) that the first code completes through `/verify`. Every credential failure is the same
+`401 "Invalid username, password or code"`. `POST /api/nutrition/water` takes `{"amount": 0.3, "isLiter": false}` (liters or gallons, team
 `LogWater`) or `{"volumeMl": 500}`, and returns `message` (for example "Added 1.13L to Alice").
 
 When a module is disabled, its endpoints answer `503 {"code":"MODULE_DISABLED"}` and the app shows a maintenance
@@ -230,7 +266,8 @@ notice.
 ## Troubleshooting
 
 - **"Cannot reach the CometFit server"** in the app: the server isn't running, or `EXPO_PUBLIC_API_URL` is wrong.
-- **Login fails with a correct password:** the 6-digit code is wrong or expired, or the laptop clock is off.
+- **"Invalid username, password or code" on Verify it's you:** the 6-digit code is wrong or expired, the laptop clock
+  is off, or the sign-in step timed out (5 minutes) / had 5 wrong codes — press *Back to sign in* and start again.
 - **Port 8080 already in use:** set `PORT=8090` before starting the server, and set `EXPO_PUBLIC_API_URL=http://localhost:8090` for the client.
 - **CORS error in the browser:** add the page's origin to `COMETFIT_CORS_ORIGINS`.
 - **"Could not decrypt field":** `COMETFIT_DATA_KEY` changed after the accounts were created. Restore the old key or reset the database.

@@ -15,7 +15,19 @@ export interface LoginResponse {
   // TD-1 (3): set when this device was just remembered
   deviceToken: string | null; trustedUntil: string | null; rememberedDevice: boolean;
 }
-export interface Registration { user: UserView; totpSecret: string; otpauthUri: string }
+/**
+ * TD-5: what POST /api/auth/login and /api/auth/verify return. verificationRequired = step 2 is needed and there is
+ * NO session yet (challengeId only); otherwise token/user are set.
+ */
+export interface LoginStep {
+  verificationRequired: boolean; challengeId: string | null; challengeExpiresAt: string | null;
+  token: string | null; expiresAt: string | null; user: UserView | null;
+  deviceToken: string | null; trustedUntil: string | null; rememberedDevice: boolean;
+}
+/** TD-5 (3): setupChallengeId is completed by the first 6-digit code on "Set up two-step verification". */
+export interface Registration {
+  user: UserView; totpSecret: string; otpauthUri: string; setupChallengeId: string; setupExpiresAt: string;
+}
 
 export interface Profile {
   userId: number; username: string; displayName: string; email: string; role: Role; isPublic: boolean;
@@ -26,8 +38,9 @@ export interface ModuleState { moduleId: 'NUTRITION' | 'ACTIVITY' | 'SOCIAL' | s
 
 // UC-1
 export type MealSource = 'MANUAL' | 'PHOTO' | 'DINING_MENU';
+// TD-6 §3: a macro is null when UTD Dining did not publish it ("not published"); manual / photo entries always have numbers.
 export interface MealEntry {
-  entryId: number | null; foodName: string; calories: number; proteinG: number; carbsG: number; fatG: number;
+  entryId: number | null; foodName: string; calories: number; proteinG: number | null; carbsG: number | null; fatG: number | null;
   source: MealSource; diningItemId: number | null; loggedAt: string;
 }
 export interface MealEntryRequest {
@@ -36,7 +49,13 @@ export interface MealEntryRequest {
 }
 export interface FoodEstimate { foodName: string; calories: number; proteinG: number; carbsG: number; fatG: number; confidence: number }
 export interface PhotoEstimate { draft: MealEntry; foodItems: FoodEstimate[]; notice: string }
-export interface DiningItem { itemId: number; name: string; location: string; calories: number; proteinG: number; carbsG: number; fatG: number }
+// TD-6: building, serving size; null macros = "not published".
+export interface DiningItem {
+  itemId: number; name: string; location: string; building: string | null; serving: string | null; calories: number;
+  proteinG: number | null; carbsG: number | null; fatG: number | null;
+}
+// TD-6 §2: GET /api/nutrition/menu/location-info
+export interface DiningLocation { name: string; building: string | null; menu: string | null; source: string | null; macrosPublished: boolean }
 // Water is stored in liters (team repo code LogWater.java); volumeMl is derived (class diagram WaterEntry.volumeMl).
 export interface WaterEntry { entryId: number; amount: number; volumeMl: number; loggedAt: string }
 export interface WaterSaveResult { saved: WaterEntry; summary: DailySummary; message: string }
@@ -44,6 +63,8 @@ export interface DailySummary {
   date: string; calories: number; calorieGoal: number; proteinG: number; carbsG: number; fatG: number;
   waterMl: number; waterLiters: number; waterGoalMl: number; bottleSizeMl: number; steps: number; stepGoal: number;
   latestHeartRate: number | null; mealCount: number; waterEntryCount: number; messages: string[];
+  /** TD-6 §3: meals whose macros were not published (counted as 0 g in the macro totals, A-55). */
+  mealsWithUnpublishedMacros?: number;
 }
 export interface SaveResult<T> { saved: T; summary: DailySummary }
 
