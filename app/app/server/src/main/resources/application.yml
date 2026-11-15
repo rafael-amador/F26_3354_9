@@ -1,0 +1,63 @@
+# CometFit server configuration.
+# Default profile = MySQL 8.4 (the "Encrypted Database" of D1 §5.3.2; product named by the team repo code README
+# "MySQL for database operations"), run via docker-compose.
+# Profile "h2" = embedded file database in MySQL mode for laptops without Docker (ASSUMPTIONS A-33).
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: cometfit-server
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/cometfit}
+    username: ${DB_USER:cometfit}
+    password: ${DB_PASSWORD:cometfit}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+cometfit:
+  # Local day boundary for daily summaries (A-9)
+  zone: ${COMETFIT_ZONE:America/Chicago}
+  # Session lifetime in hours (A-6)
+  session-hours: ${COMETFIT_SESSION_HOURS:12}
+  # TD-1 (3): "Remember this device for 30 days" (A-39)
+  remember-device-days: ${COMETFIT_REMEMBER_DEVICE_DAYS:30}
+  # Base64 AES-256 key used to encrypt sensitive user fields at rest (NFR Security, A-5).
+  # The default is a DEVELOPMENT key only. Set COMETFIT_DATA_KEY in any shared environment.
+  data-key: ${COMETFIT_DATA_KEY:Q29tZXRGaXQtZGV2LW9ubHkta2V5LWNoYW5nZS1tZSE=}
+  # Shared secret that external systems (UREC card reader, monitoring service) present (A-12).
+  integration-key: ${COMETFIT_INTEGRATION_KEY:dev-integration-key}
+  # Monitoring service stub interval (SD-4 "loop every interval", MonitoringService.checkIntervalSec)
+  monitoring:
+    check-interval-sec: ${COMETFIT_MONITOR_INTERVAL_SEC:30}
+    stub-enabled: ${COMETFIT_MONITOR_STUB:true}
+  # Seed demo accounts (developer + two students) with fixed TOTP secrets (A-14). Demo only.
+  seed-demo: ${COMETFIT_SEED_DEMO:true}
+  # Allowed browser origins for the web build of the mobile client
+  cors-origins: ${COMETFIT_CORS_ORIGINS:http://localhost:8081,http://localhost:19006}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: h2
+  datasource:
+    url: ${DB_URL:jdbc:h2:file:./data/cometfit-mysql;MODE=MySQL;DATABASE_TO_LOWER=TRUE}
+    username: ${DB_USER:sa}
+    password: ${DB_PASSWORD:}
